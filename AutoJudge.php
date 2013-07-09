@@ -1,90 +1,97 @@
 <?php
-/*
- * 4/25
- * DBからquestion_idを使って、条件に合うデータだけを抽出できた
- * テーブルの行数もカウント
- * 問題点：現状だと「inputの数＝outputの数」となっているが、問題によっては、inputがない問題も考えられるので対応させたい
- * 5/17
- * input_dataをかませて、output_dataと比較まで完了
- * 次の課題
- * 間違った箇所を掲載するruct/const.php");
- * 6/19
- * 変数名の統一および不要な変数の消去
- */
+require_once("./construct/const.php");
 
 /*
  * テストデータを用いてプログラムの正しさを判定する
  * 自動正誤判定
  */
 class AutoJudge {
-  private $java_file = "Main.java";
-  private $time, $total_time;
-  private $file_pass, $file_exist;
-  //private $result, $error;
-  private $directory_pass;
-  private $input_datas  = array();
-  private $output_datas = array();
+  private $dir_pass = "TemporaryDirectory";
+  private $temporary_dir_name = "";
+  private $result ="";
+  private $error  ="";
   private $question_id = 1;
-	//private $class_file = "Main.class";
 	
-	/**
-   * 実行などを行うための一時フォルダおよび
-   * ユーザが書いたプログラムをMain.javaとして作成する
-   * @return 
+  /**
+   * 完了：7/8
+   * 一時フォルダの生成およびMain.javaの存在確認
+   * @param user_id
+   * @param question_id
+   * @return true or false
    */
-	public final function CreateFolder() {
-	  // exec("mkdir ./sample");
-	  if(!$this->chkFileExist()){
-      return false;
-	  }
-    // exec("mv ./Main.java ./sample/");
-    // exec("chmod 666 ./sample/*");
-    //exec("mv ./sample/Main.java Main.java");
-    return true;
+  public final function mkDirectory($user_id, $question_id) {
+      $this->temporary_dir_name = $this->getUniquName($user_id, $question_id);
+      $this->chkDirecotryExist();
+      exec("mkdir ./$this->dir_pass/$this->temporary_dir_name");
+      exec("cp ./Main.java ./$this->dir_pass/$this->temporary_dir_name");
+      if(!$this->chkFileExist()){
+          return false;
+      }
+      return true;
   }
   
   /**
-   * ユーザの書いたコードでMain.javaが作成されているか確認
-   * @return true, 失敗：false
+   * 完了：7/8
+   * 以前生成されたディレクトリが存在するかどうかの確認
+   */
+  private final function chkDirecotryExist() {
+      if(file_exists("./$this->dir_pass/$this->temporary_dir_name") 
+        && is_dir("./$this->dir_pass/$this->temporary_dir_name")) {
+          printf("既にディレクトリが生成されています");
+          //exec("chmod 666 ./$this->dir_pass/$this->temporary_dir_name/");
+          exec("rm -rf ./$this->dir_pass/$this->temporary_dir_name");
+          printf("削除しました");
+      }else{
+          printf("ディレクトリの生成を開始");
+      }
+  }
+  
+  /**
+   * 完了：7/8
+   * 正しく一時フォルダの中にMain.javaが生成されているか確認
+   * @return true, false
    */
   private final function chkFileExist() {
-    $this->file_pass = ".";
-    if(is_file("$this->file_pass/Main.java")){
-      return true;
-    }else{
-      return false;
-    }
+      if(is_file("./$this->dir_pass/$this->temporary_dir_name/Main.java")){
+          printf("無事に確認<br>");
+          return true;
+      }else{
+          printf("確認できませんでした<br>");
+          return false;
+      }
   }
   
-  //directory_pass 毎回一時的なフォルダを作成し、その中でコンパイルおよび実行を行うため
-  //その一時フォルダの名前が入る
-  //実際は　java -cp ./pass/ Mainでおk
   /**
    * 作成したMain.javaをコンパイルする
-   * @param directory_pass 一時ディレクトリのパス
    * @return 成功：true, 失敗：false
    */
-  public final function Compile($directory_pass) {
-    $result = array();
-    $err_code = 0;
-    exec(JAVA_PASS . "/javac  Main.java", $result, $err_code);
-    if($err_code != 0) {
-      return false;
-    }
-    return true;
+  public final function Compile() {
+      $result = array();
+      $err_code = 0;
+      //コンパイル
+      exec(JAVA_PASS . "/javac ./$this->dir_pass/$this->temporary_dir_name/Main.java", $result, $err_code);
+      if($err_code != 0) {
+          printf("コンパイルに失敗<br>");
+          return false;
+      }
+      printf("コンパイルに成功<br>");
+      return true; 
   }
   
   /**
    * テストデータを引数に取り実行する
+   * 実際は　java -cp ./pass/ Mainでおk
    * @param directory_pass 一時ディレクトリのパス
    * @param input_datas    テストデータが入っている配列
    * @return result 実行結果が入った配列
    * @return error  実行が失敗した場合にこの中にエラー内容が入る
    */
   //ここから修正6-19
-  public final function Run($directory_pass, $input_datas) {
+  public final function Run($input_datas) {
     for($i = 0; $i < count($input_datas); $i++) {
-      exec("ulimit -f 1 -t 2;" . JAVA_PASS . "/java Main $input_datas[$i]", $this->result, $this->error);
+      exec("ulimit -f 1 -t 2;" . JAVA_PASS . 
+        "/java -cp ./$this->dir_pass/$this->temporary_dir_name/ Main $input_datas[$i]"
+        , $this->result, $this->error);
       if($this->error != 0) {
         $this->error = RUN_TIME_ERROR;
         return array($this->result, $this->error);
@@ -209,9 +216,17 @@ class AutoJudge {
     return $count;
   }
 	
-  //ユニークな名前を作成する
-	public final function getUniquName() {
-		return $this->java_file;
-	}
+  /**
+   * 完了：7/8
+   * ユーザIDと問題のIDを組み合わせてユニークな名前の生成
+   * @param user_id
+   * @param question_id
+   * @return uniqu_name 「ユーザID-問題ID」の文字列を返す
+   */
+  public final function getUniquName($user_id, $question_id) {
+    $uniqu_name = "$user_id" . "-" . "$question_id";
+    printf($uniqu_name);
+	return $uniqu_name;
+  }
 }
 ?>

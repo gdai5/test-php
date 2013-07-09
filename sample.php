@@ -34,10 +34,10 @@ if(!$auto_judge->Compile("directory_pass")) {
 //問題番号に応じて、テストデータを取ってくる
 //(5/8)
 //各ファイルの中身を順番に対応させて取得する配列
-$input_datas  = array();
-$output_datas = array();
-$question_id = 1;
-list($input_datas, $output_datas) = $auto_judge->getTestData($question_id);
+//$input_datas  = array();
+//$output_datas = array();
+//$question_id = 1;
+//list($input_datas, $output_datas) = $auto_judge->getTestData($question_id);
 
 // for($i = 0; $i < count($input_datas); $i++) {
   // print "inputdata$i : " . $input_datas[$i];
@@ -51,15 +51,15 @@ list($input_datas, $output_datas) = $auto_judge->getTestData($question_id);
 //echo "<br>";
 //echo "実験<br>";
 
-list($judge_result, $judge_error) = $auto_judge->Run("directory_pass", $input_datas);
-if($judge_error == RUN_TIME_ERROR) {
-  echo "実行時エラー"."<br>";
-  exit;
-}
+// list($judge_result, $judge_error) = $auto_judge->Run("directory_pass", $input_datas);
+// if($judge_error == RUN_TIME_ERROR) {
+  // echo "実行時エラー"."<br>";
+  // exit;
+// }
 
 //echo "実行成功<br>";
-$crear_count = $auto_judge->Judgement($judge_result, $output_datas);
-echo count($output_datas) . "個中　：" . $crear_count . "個正解";
+//$crear_count = $auto_judge->Judgement($judge_result, $output_datas);
+//echo count($output_datas) . "個中　：" . $crear_count . "個正解";
 
 ?>
 
