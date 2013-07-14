@@ -8,9 +8,6 @@ require_once("./construct/const.php");
 class AutoJudge {
   private $dir_pass = "TemporaryDirectory";
   private $temporary_dir_name = "";
-  private $result ="";
-  private $error  ="";
-  private $question_id = 1;
 	
   /**
    * 完了：7/8
@@ -22,8 +19,8 @@ class AutoJudge {
   public final function mkDirectory($user_id, $question_id) {
       $this->temporary_dir_name = $this->getUniquName($user_id, $question_id);
       $this->chkDirecotryExist();
-      exec("mkdir ./$this->dir_pass/$this->temporary_dir_name");
-      exec("cp ./Main.java ./$this->dir_pass/$this->temporary_dir_name");
+      exec("mkdir ./". DIRECTORY_PASS ."/$this->temporary_dir_name");
+      exec("cp ./Main.java ./". DIRECTORY_PASS ."/$this->temporary_dir_name");
       if(!$this->chkFileExist()){
           return false;
       }
@@ -84,20 +81,22 @@ class AutoJudge {
    * @param directory_pass 一時ディレクトリのパス
    * @param input_datas    テストデータが入っている配列
    * @return result 実行結果が入った配列
-   * @return error  実行が失敗した場合にこの中にエラー内容が入る
    */
   //ここから修正6-19
   public final function Run($input_datas) {
-    for($i = 0; $i < count($input_datas); $i++) {
-      exec("ulimit -f 1 -t 2;" . JAVA_PASS . 
-        "/java -cp ./$this->dir_pass/$this->temporary_dir_name/ Main $input_datas[$i]"
-        , $this->result, $this->error);
-      if($this->error != 0) {
-        $this->error = RUN_TIME_ERROR;
-        return array($this->result, $this->error);
+      $program_outputs = array();
+      $error  = "";
+      for($i = 0; $i < count($input_datas); $i++) {
+        exec("ulimit -f 1 -t 2;" . JAVA_PASS . 
+          "/java -cp ./$this->dir_pass/$this->temporary_dir_name/ Main $input_datas[$i]"
+          , $program_outputs, $error);
+        if($error != "") {
+          printf("Run time Error!");
+          $program_outputs[0] = "Run time Error";
+          return $program_outputs;
+        }
       }
-    }
-    return array($this->result, $this->error);
+      return $program_outputs;
   }
   
   
@@ -108,8 +107,8 @@ class AutoJudge {
    * @return output_datas テストデータ（出力）の値が入った配列
    */
   public final function getTestData($question_id) {
-    $mysqli = $this->DatabaseConnection();
-    $query = "SELECT input_file, output_file FROM testdatas WHERE question_id = $question_id;";
+    $mysqli = DatabaseConnection();
+    $query = "SELECT input_file, output_file FROM testdatas WHERE question_id = '$question_id';";
     $testdata_files = $mysqli->query($query);
     
     //テストデータが入っているファイル名が入った配列
@@ -127,23 +126,9 @@ class AutoJudge {
     $input_datas  = array();
     $output_datas = array();
     list($input_datas, $output_datas) 
-      = $this->readTestDataFiles($input_files, $output_files);
+      = $this->readTestDataFiles($input_files, $output_files, $question_id);
     
     return array($input_datas, $output_datas);
-  }
-  
-  /**
-   * DBとの接続を行う
-   * @return mysqli DBとの接続をやり取りする変数
-   */
-  private final function DatabaseConnection() {
-    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
-    if($mysqli->connect_errno) {
-      print("エラーが発生しました。");
-      exit;
-    }
-    print("接続おk<br>");
-    return $mysqli;
   }
 
   //中身を上手く持ってきたが、色々と危ない気がする
@@ -154,12 +139,12 @@ class AutoJudge {
    * @return input_datas テストデータ（入力）の値が入った配列
    * @return output_datas テストデータ（出力）の値が入った配列
    */
-  private final function readTestDataFiles(array $input_files, array $output_files) {
+  private final function readTestDataFiles(array $input_files, array $output_files, $question_id) {
     //テストデータの値（入力）を配列に格納していく
     $input_datas = array();
     for($i=0; $i < count($input_files); $i++) {
-      if(is_file("./Datas/test_datas/input_datas/$this->question_id/$input_files[$i]")){ 
-        $text = fopen("./Datas/test_datas/input_datas/$this->question_id/$input_files[$i]","r"); 
+      if(is_file("./Datas/test_datas/input_datas/$question_id/$input_files[$i]")){ 
+        $text = fopen("./Datas/test_datas/input_datas/$question_id/$input_files[$i]","r"); 
         while(!feof($text)){ 
           $line = fgets($text);
           if(preg_match("/^[a-zA-Z0-9]/", $line)){ //空白の行は無視
@@ -176,8 +161,8 @@ class AutoJudge {
     //テストデータの値（出力）を配列に格納していく
     $output_datas = array();
     for($i=0; $i < count($output_files); $i++) {
-      if(is_file("./Datas/test_datas/output_datas/$this->question_id/$output_files[$i]")){
-        $text = fopen("./Datas/test_datas/output_datas/$this->question_id/$output_files[$i]",'r'); 
+      if(is_file("./Datas/test_datas/output_datas/$question_id/$output_files[$i]")){
+        $text = fopen("./Datas/test_datas/output_datas/$question_id/$output_files[$i]",'r'); 
         while(!feof($text)){ 
           $line = fgets($text);
           if(preg_match("/^[a-zA-Z0-9]/", $line)){ //空白の行は無視
@@ -199,22 +184,89 @@ class AutoJudge {
    * @param output_datas 予測結果が入った配列
    * @return count 何問予測結果と一致したか
    */
-  public final function Judgement($result, $output_datas) {
-    $count = 0;
-    if(count($result) != count($output_datas)) { //いる？
-      return $count;
+  public final function Judgement($program_outputs, $output_datas) {
+    $correct_answers = 0;
+    $judge_result = "";
+    if(count($program_outputs) != count($output_datas)) { //いる？
+      printf("出力結果の個数が一致していません");
+      return array($correct_answers, $judge_result);
     }
     for($i=0; $i < count($output_datas); $i++) {
-      echo ("プログラムの出力：" . $result[$i]       . "<br>");
+      echo ("プログラムの出力：" . $program_outputs[$i]       . "<br>");
       echo ("用意した予想出力：" . $output_datas[$i] . "<br>");
-      if(preg_match("/^".$result[$i]."(\s|\s\s)$/", $output_datas[$i])) { //空白二つまで容認
+      if(preg_match("/^".$program_outputs[$i]."(\s|\s\s)$/", $output_datas[$i])) { //空白二つまで容認
         echo "ヒット<br>";
-        $count ++;
+        $correct_answers++;
       }
       echo "<br>";
     }
-    return $count;
+    if($correct_answers == count($output_datas)) {
+        $judge_result = "Accepted";
+    }else{
+        $judge_result = "Wrong Answer";
+    }
+    return array($correct_answers, $judge_result);
   }
+  
+  /**
+   * 完成：7/7
+   * statusテーブルの情報を更新もしくは新規で追加する
+   * @param user_id         ユーザのID
+   * @param question_id     問題のID
+   * @param judge_result    判定結果（Accepted, Wrong Answer, Compile Error, Runtime Error, Time Out, Output Limit Exceeded）
+   * @param correct_answers 正解したテストデータの数
+   */
+  public final function writeStatus($user_id, $question_id, $judge_result, $testdatas_num, $correct_answers) {
+      $this->mysqli = DatabaseConnection();
+
+      $char_set_flag = $this->mysqli->query('SET NAMES utf8'); //文字コードの指定(UTF-8)
+      if(!$char_set_flag) {
+        $this->mysqli->close();
+        exit('文字コードを指定できませんでした。');
+      }
+      
+      //テーブルの情報を更新するのか、それとも新しく追加するのか
+      $update_flag = $this->chkSameColum($user_id, $question_id);
+      if(!$update_flag) { //新規追加
+        //エラーの原因は変数をシングルクウォテーションで囲ってなかったため
+        $query = "INSERT INTO status (user_id, question_id, result, testdatas_num, correct_answers, create_at) 
+                              VALUES ('$user_id', '$question_id', '$judge_result', '$testdatas_num', '$correct_answers', now());";  
+      }else{ //更新
+        $query = "update status set result = '$judge_result', testdatas_num = '$testdatas_num', 
+                                    correct_answers = '$correct_answers', create_at = now() 
+                                    where user_id = '$user_id' and question_id = '$question_id';";
+      }
+      
+      $char_set_flag = $this->mysqli->query($query);
+      if(!$char_set_flag) {
+        exit('失敗しました。'. $this->mysqli->error);
+      }
+      $this->mysqli->close();
+  }
+
+  /**
+   * 完成：7/7
+   * statusテーブルで既にuser_idとquestion_idの二つが一致しているものがあった場合
+   * statusテーブルのresultの項目だけ、更新する。
+   * そうでない場合は、新規で追加する。
+   * @param user_id     ユーザのID
+   * @param question_id 問題のID
+   * @return false この場合には、テーブルに新しく要素を追加する（つまり、初めてその問題を解いたということ）
+   *     or  true  この場合には、テーブルのresult項目だけを更新する
+   *               更新は　Accepted > Wrong Anwser, Time Out, Output Limit Exceeded > Runtime Error > Compile Error
+   *               となり、今の結果から左に行く場合は更新が発生する。右に行く場合は更新を行わない。
+   */
+  private final function chkSameColum($user_id, $question_id) { 
+      $query = "SELECT id FROM status WHERE question_id = '$question_id' and user_id = '$user_id';";
+      $status_colum = $this->mysqli->query($query);
+      if($status_colum->fetch_assoc() == null) {
+          printf("追加します");
+          return false;
+      }
+      printf("更新します");
+      return true;
+  }
+  
 	
   /**
    * 完了：7/8
