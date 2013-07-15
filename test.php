@@ -9,7 +9,6 @@ require_once("./construct/const.php");
 
 //初期化
 $auto_judge      = new AutoJudge();
-$auto_assessment = new AutoAssessment();
 $user_id     = 5;
 $question_id = 2;
 $judge_result = "";

@@ -18,6 +18,11 @@
       exit;
     }
     print("接続おk<br>");
+    $char_set_flag = $mysqli->query('SET NAMES utf8'); //文字コードの指定(UTF-8)
+      if(!$char_set_flag) {
+      $this->mysqli->close();
+      exit('文字コードを指定できませんでした。');
+    }
     return $mysqli;
   }
   

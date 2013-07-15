@@ -218,12 +218,6 @@ class AutoJudge {
    */
   public final function writeStatus($user_id, $question_id, $judge_result, $testdatas_num, $correct_answers) {
       $this->mysqli = DatabaseConnection();
-
-      $char_set_flag = $this->mysqli->query('SET NAMES utf8'); //文字コードの指定(UTF-8)
-      if(!$char_set_flag) {
-        $this->mysqli->close();
-        exit('文字コードを指定できませんでした。');
-      }
       
       //テーブルの情報を更新するのか、それとも新しく追加するのか
       $update_flag = $this->chkSameColum($user_id, $question_id);
