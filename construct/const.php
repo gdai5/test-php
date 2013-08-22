@@ -2,6 +2,9 @@
   //Java Pass
   define("JAVA_PASS", "/Library/Java/JavaVirtualMachines/jdk1.7.0_25.jdk/Contents/Home/bin");
   
+  //Requier Pass
+  define("REQUIER_PASS", "/Users/ishikawahitoshi/Sites/test-php");
+  
   //Direcotry Pass
   define("DIRECTORY_PASS", "TemporaryDirectory");
   
@@ -17,7 +20,7 @@
       print("エラーが発生しました。");
       exit;
     }
-    print("接続おk<br>");
+    //print("接続おk<br>");
     $char_set_flag = $mysqli->query('SET NAMES utf8'); //文字コードの指定(UTF-8)
       if(!$char_set_flag) {
       $this->mysqli->close();

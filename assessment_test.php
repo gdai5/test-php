@@ -1,20 +1,23 @@
-<?php
+ <?php
 /**
  * 最終更新：7/8
  * 正誤判定と自動評価を組み合わせた動作確認プログラム
  */
-require_once("AutoJudge.php");
-require_once("AutoAssessment.php");
 require_once("./construct/const.php");
+require_once(REQUIER_PASS . "/UserAutoAssessments/UserAssessment.php");
+require_once(REQUIER_PASS . "/QuestionAutoAssessments/QuestionAssessment.php");
 
 //初期化
-$auto_assessment = new AutoAssessment();
-$user_id     = 1;
+$user_assessment     = new UserAssessment();
+$question_assessment = new QuestionAssessment();
+$user_id     = 3;
 $question_id = 2;
-$judge_result = "";
-$correct_answers = 0;
-$testdatas_num = 0;
 
-$auto_assessment->UserAssessment($user_id);
+for($i = 1; $i < 2; $i++) {
+    printf($i . "回目<br>");
+    $user_assessment->Assessment($user_id);
+    $question_assessment->Assessment($question_id);        
+    printf("-------------------------------------------<br>");
+}
 
 ?>

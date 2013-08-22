@@ -8,6 +8,39 @@ require_once("./construct/const.php");
 class AutoJudge {
   private $dir_pass = "TemporaryDirectory";
   private $temporary_dir_name = "";
+  
+  
+  public final function Judge($user_id, $question_id) {
+      //一時ディレクトリの作成
+      if(!$this->mkDirectory($user_id, $question_id)) { //シュミレーションではいらない
+          printf("一時ディレクトリの作成に失敗しました");
+      }
+      //コンパイル
+      if($this->Compile() == false) { //シュミレーションではいらない
+          $judge_result = "Compile Error";
+          $this->writeStatus($user_id, $question_id, $judge_result, 0, 0);
+          exit;
+      }
+      //テストデータの取得
+      $input_datas  = array();
+      $output_datas = array();
+      list($input_datas, $output_datas) = $this->getTestData($question_id);
+      //実行
+      $program_outputs = array();
+      $program_outputs = $this->Run($input_datas);
+      if($program_outputs[0] == "Run time Error"){
+          $judge_result = "Runtime Error";
+          $this->writeStatus($user_id, $question_id, $judge_result, 0, 0);
+          exit;
+      }
+      //正誤比較
+      $correct_answers = 0;
+      list($correct_answers, $judge_result) = $this->Judgement($program_outputs, $output_datas);
+      //DBに結果の書き込み
+      $testdatas_num = count($output_datas);
+      $this->writeStatus($user_id, $question_id, $judge_result, $testdatas_num, $correct_answers); 
+  }
+  
 	
   /**
    * 完了：7/8
