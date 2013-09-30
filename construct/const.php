@@ -29,4 +29,9 @@
     return $mysqli;
   }
   
+  function add_sql_string($sql, $string) {
+      $sql .= $string;
+      return $sql;
+  }
+  
 ?>

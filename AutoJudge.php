@@ -1,5 +1,17 @@
 <?php
+/**
+ * 2013-09-25
+ * 全部文字列比較を行ってしまっているため、それを回避するために
+ * 整数でマッチングさせないとだめ。
+ */
+
 require_once("./construct/const.php");
+
+define("COMPILE_ERROR", 0);
+define("RUNTIME_ERROR", 1);
+define("NOT_CORRECT", 2);
+define("CLOSE_ANSWER", 3);
+define("ACCEPTED", 4);
 
 /*
  * テストデータを用いてプログラムの正しさを判定する
@@ -17,7 +29,7 @@ class AutoJudge {
       }
       //コンパイル
       if($this->Compile() == false) { //シュミレーションではいらない
-          $judge_result = "Compile Error";
+          $judge_result = COMPILE_ERROR;
           $this->writeStatus($user_id, $question_id, $judge_result, 0, 0);
           exit;
       }
@@ -28,8 +40,8 @@ class AutoJudge {
       //実行
       $program_outputs = array();
       $program_outputs = $this->Run($input_datas);
-      if($program_outputs[0] == "Run time Error"){
-          $judge_result = "Runtime Error";
+      if($program_outputs[0] == RUNTIME_ERROR){
+          $judge_result = RUNTIME_ERROR;
           $this->writeStatus($user_id, $question_id, $judge_result, 0, 0);
           exit;
       }
@@ -125,7 +137,7 @@ class AutoJudge {
           , $program_outputs, $error);
         if($error != "") {
           printf("Run time Error!");
-          $program_outputs[0] = "Run time Error";
+          $program_outputs[0] = RUNTIME_ERROR;
           return $program_outputs;
         }
       }
@@ -234,9 +246,11 @@ class AutoJudge {
       echo "<br>";
     }
     if($correct_answers == count($output_datas)) {
-        $judge_result = "Accepted";
-    }else{
-        $judge_result = "Wrong Answer";
+        $judge_result = ACCEPTED;
+    }else if($correct_answers >= 1){
+        $judge_result = CLOSE_ANSWER;
+    } else {
+        $judge_result = NOT_CORRECT;
     }
     return array($correct_answers, $judge_result);
   }
@@ -256,11 +270,11 @@ class AutoJudge {
       $update_flag = $this->chkSameColum($user_id, $question_id);
       if(!$update_flag) { //新規追加
         //エラーの原因は変数をシングルクウォテーションで囲ってなかったため
-        $query = "INSERT INTO status (user_id, question_id, result, testdatas_num, correct_answers, create_at) 
+        $query = "INSERT INTO status (user_id, question_id, result, testdatas_num, correct_answers, created_at) 
                               VALUES ('$user_id', '$question_id', '$judge_result', '$testdatas_num', '$correct_answers', now());";  
       }else{ //更新
         $query = "update status set result = '$judge_result', testdatas_num = '$testdatas_num', 
-                                    correct_answers = '$correct_answers', create_at = now() 
+                                    correct_answers = '$correct_answers', created_at = now() 
                                     where user_id = '$user_id' and question_id = '$question_id';";
       }
       

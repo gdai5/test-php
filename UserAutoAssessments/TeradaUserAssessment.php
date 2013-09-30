@@ -1,17 +1,22 @@
 <?php
 
-
-  function TeradaUserDeltaFlag($difficult, $ability_score ,$status) {
+  /**
+   * 簡単な問題か難しい問題のどちらに挑戦したのかで分岐させて、その時のδの値を得る
+   * @param $difficult     問題の難易度
+   * @param $ability_score ユーザの実力
+   * @param $status        このなかにstatusテーブルの１レコード分が入っている
+   */
+  function teradaUserDeltaFlag($difficult, $ability_score ,$status) {
       printf("問題番号" . $status["question_id"] . "　:　難易度＝" . $difficult . "<br>");
-      if ($ability_score > $difficult) {
+      if ($ability_score >= $difficult) {
           //簡単な問題にチャレンジした時の処理
-          $delta = SelectEasyQuestion($status);
+          $delta = selectEasyQuestion($status);
       } else {
           //難し問題にチャレンジした時の処理
-          $delta = SelectDifficultQuestion($status);
+          $delta = selectDifficultQuestion($status);
       }
       printf("結果＝" . $status["result"] . "  δ＝$delta <br>");
-      return array($difficult, $delta);
+      return $delta;
   }
   
   /**
@@ -19,24 +24,21 @@
    * @param status statusテーブルの全てのカラムが入っている連想配列
    * @return delta　０〜１までの範囲 
    */
-  function SelectEasyQuestion($status) {
+  function selectEasyQuestion($status) {
       switch ($status["result"]) {
-          case 'Compile Error':
+          case COMPILE_ERROR:
                $delta = 1;
                break;
-           case 'Runtime Error':
+           case RUNTIME_ERROR:
                $delta = 0.7;
                break;
-           case 'Time Out':
+           case NOT_CORRECT:
                $delta = 0.5;
                break;
-           case 'Output Limit Exceeded':
-               $delta = 0.5;
-               break;
-           case 'Wrong Answer':
+           case CLOSE_ANSWER:
                $delta = 0.5 - 0.5 * ($status["correct_answers"] / $status["testdatas_num"]);
                break;
-           case 'Accepted':
+           case ACCEPTED:
                $delta = 0;
                break;
       }
@@ -48,24 +50,21 @@
    * @param status statusテーブルの全てのカラムが入っている連想配列
    * @return delta　０〜１までの範囲 
    */
-  function SelectDifficultQuestion($status) {
+  function selectDifficultQuestion($status) {
       switch ($status["result"]) {
-          case 'Compile Error':
+          case COMPILE_ERROR:
                $delta = 0;
                break;
-           case 'Runtime Error':
-               $delta = 0.3;
+           case RUNTIME_ERROR:
+               $delta = 0;
                break;
-           case 'Time Out':
-               $delta = 0.5;
+           case NOT_CORRECT:
+               $delta = 0;
                break;
-           case 'Output Limit Exceeded':
-               $delta = 0.5;
-               break;
-           case 'Wrong Answer':
+           case CLOSE_ANSWER:
                $delta = 0.5 + 0.5 * ($status["correct_answers"] / $status["testdatas_num"]);
                break;
-           case 'Accepted':
+           case ACCEPTED:
                $delta = 1;
                break;
       }

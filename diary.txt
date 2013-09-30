@@ -1,0 +1,16 @@
+9/26
+・自動正誤判定のテストプログラム「judge_test.php」
+　および、自動評価のテストプログラム「assessment_test.php」の二つを動作確認ができた
+・IshikawaUserAssessment.phpのプログラムを変更
+　ーDBのresult項目の変更に伴い、文字列比較から整数比較に変更
+・OriginalUserAssessment.phpおよびTeradaUserAssessment.phpの二つのプログラムを修正
+
+これから
+・NomalUserModel.phpを少し走らせてみる。
+・UserModel.phpでは、statusに書き込む為に必要な情報をファイルに出力するだけのプログラムに変更
+　-これにより同じ条件下で３つの計算式を比較できる。
+　-また、同じ位置でスタートさせる必要がある（初期設定で与える実力と難易度も同じ土俵）
+・シミュレーション実験のための初期データを導入するプログラムinsert_data_set.php
+　-user=100, question=100まで導入完了
+
+次回：true_ability_score and true_difficultを１００件導入する

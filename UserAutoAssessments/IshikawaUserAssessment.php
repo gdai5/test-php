@@ -10,50 +10,80 @@
    * @return difficult 実行結果から計算し直した値
    * @return delta 計算をする場合は1, そうでない場合は0 
    */
-   function UserDeltaFlag($difficult, $ability_score ,$status) {
+   function ishikawaUserDeltaFlag($difficult, $ability_score ,$status) {
        printf("問題番号" . $status["question_id"] . "　:　難易度（修正前）＝" . $difficult);
+       //簡単な問題なのか、難しい問題なのかで判定を分ける
+       if($ability_score >= $difficult) {
+           return selectEasyQuestion($difficult, $ability_score, $status);
+       }else{
+           return selectDifficultQuestion($difficult, $ability_score, $status);
+       }
+   }
+
+   /**
+    * 簡単な問題の処理
+    */
+   function selectEasyQuestion($difficult, $ability_score, $status) {
        $delta = 0;
        switch($status["result"]) {
-           case 'Compile Error': 
-               $difficult = 0;
-               if($ability_score > $difficult){
+           case COMPILE_ERROR: //コンパイルエラー
+               $difficult = $difficult * (1 / 3);
+               $delta = 1;   
+               break;
+           case RUNTIME_ERROR: //実行時エラー
+               $difficult = $difficult * (1 / 2);
+               $delta = 1;
+               break;
+           case NOT_CORRECT: //テストデータと一つも合っていない
+               $difficult = $difficult * (2 / 3);
+               $delta = 1;
+               break;
+           case CLOSE_ANSWER: //テストデータと一つ以上合う
+               $difficult = ($difficult * (2 / 3))
+                                + (($difficult * (1 / 3)) * ($status["correct_answers"] / $status["testdatas_num"]));
+               $delta = 1;
+               break;
+           case ACCEPTED: //全てのテストデータに正解
+               $delta = 0;
+               break;
+       }
+       printf("　:　難易度（修正後）＝" . $difficult . "<br>");
+       printf("結果＝" . $status["result"] . "  δ＝$delta <br>");
+       return array($difficult, $delta);
+   }
+
+   /**
+    * 難しい問題だった場合の処理
+    */
+   function selectDifficultQuestion($difficult, $ability_score, $status) {
+       $delta = 0;
+       switch($status["result"]) {
+           case COMPILE_ERROR: //コンパイルエラー
+               $difficult = $difficult * (1/3);
+               if($ability_score >= $difficult){
                    $delta = 1;  
                } 
                break;
-           case 'Runtime Error':
-               $difficult = $difficult * (1 / 3);
-               if($ability_score > $difficult) {
+           case RUNTIME_ERROR: //実行時エラー
+               $difficult = $difficult * (1 / 2);
+               if($ability_score >= $difficult) {
                    $delta = 1;
                }
                break;
-           case 'Time Out':
+           case NOT_CORRECT: //テストデータと一つも合っていない
                $difficult = $difficult * (2 / 3);
-               if($ability_score > $difficult) {
+               if($ability_score >= $difficult) {
                    $delta = 1;
                }
                break;
-           case 'Output Limit Exceeded':
-               $difficult = $difficult * (2 / 3);
-               if($ability_score > $difficult) {
-                   $delta = 1;
-               }
-               break;
-           case 'Wrong Answer': //失敗と成功の二つの認識パターンを作成
-               if($status["correct_answers"] == 0) { //テストデータを一つもクリアできていない場合
-                   $difficult = $difficult * (2 / 3);
-                   if($ability_score > $difficult) {
-                       $delta = 1;
-                   }
-                   break;
-               }else{ //$difficult = 難易度の2/3 + 難易度の1/3 * クリアした個数/テストデータの数
-                   $difficult = ($difficult * (2 / 3))
+           case CLOSE_ANSWER: //テストデータと一つ以上合う
+               $difficult = ($difficult * (2 / 3))
                                 + (($difficult * (1 / 3)) * ($status["correct_answers"] / $status["testdatas_num"]));
-                   if($ability_score < $difficult) {
+               if($ability_score < $difficult) {
                        $delta = 1;
-                   }
-                   break;
                }
-           case 'Accepted':
+               break;
+           case ACCEPTED: //全てのテストデータに正解
                if($ability_score < $difficult) {
                    $delta = 1;
                }
