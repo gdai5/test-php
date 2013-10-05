@@ -1,7 +1,7 @@
 <?php
 /**
- * 2013-09-25
- * まずはこちらを、statusの変更に伴い変形させる
+ * 2013-10-03
+ * シミュレーション用の実力評価
  */
 //各計算式の読み込み
 //require_once(REQUIER_PASS . "/UserAutoAssessments/OriginalUserAssessment.php");
@@ -19,23 +19,14 @@ define("CLOSE_ANSWER", 3);
 define("ACCEPTED", 4);
 
 class UserAssessment {
-  private $mysqli;
+  
     
   /**
-   * 最終更新 7/19
-   * Main
-   * ユーザの実力を計算する
-   * 一通り出来ている（手計算で確認済み）
-   * @param user_id ユーザのID
+   * そのユーザの履歴と真の実力および、挑戦した真の問題の難易度を受け取り
+   * 計算後のユーザの実力返す関数である
    */
-  public final function Assessment($user_id, $users_ability_score_transition) {
-      $this->mysqli = DatabaseConnection();
-      //ユーザの実力を取得する（ただし、シミュレーションでは不要）
-      $ability_score = $this->getAbilityScore($user_id);
-      //ユーザの新規追加の場合だけ通る
-      if (!array_key_exists($user_id, $users_ability_score_transition)) {
-          $users_ability_score_transition["$user_id"] = array($ability_score);
-      } 
+  public final function Assessment($user_history, $true_ability_score, $true_difficult) {
+      
       //履歴を基にユーザの新しい実力を取得する
       $new_ability_score = $this->abilityScoreCalculation($user_id, $ability_score);
       //実力の推移を記録
@@ -44,22 +35,6 @@ class UserAssessment {
       $this->updateUserAbilityScore($user_id, $new_ability_score);
       $this->mysqli->close();
       return $users_ability_score_transition;
-  }
-
-  
-  /**
-   * 引数のuser_idと一致するユーザの実力値（ability_score）をDBから取ってくる
-   * シミュレーションでは不要
-   * @param user_id        ユーザID
-   * @return ability_score ユーザの実力値
-   */
-  private final function getAbilityScore($user_id) {
-      $query = "SELECT ability_score FROM users WHERE id = '$user_id';";
-      $query_result = $this->mysqli->query($query);
-      while($row = $query_result->fetch_assoc()) {
-          $ability_score = $row["ability_score"];
-      }
-      return $ability_score;
   }
   
   
@@ -103,42 +78,6 @@ class UserAssessment {
        printf("新しいユーザの実力＝$new_ability_score<br>");
        return $new_ability_score;
    }
-  
-
-  /**
-   * @param query MySQLの命令文
-   * @return status statusテーブルから条件に合った要素が入っている連想配列
-   */
-  private final function getUserStatusHistory($query) {
-      $status = $this->mysqli->query($query);
-      if(!$status) {
-         exit('問題の履歴取得に失敗しました'. $this->mysqli->error);
-      }
-      return $status;
-  }
-  
-  /**
-   *　新しく計算された実力をusersテーブルに更新する
-   * @param user_id ユーザID
-   * @param new_ability_score 再計算した実力値
-   */
-  private final function updateUserAbilityScore($user_id, $new_ability_score) {
-      $query = "update users set ability_score = '$new_ability_score' where id = '$user_id';";
-      $this->updateColumn($query);
-  }
-  
-  
-  /**
-   * 実力or難易度のupdate用の関数
-   * @param query mysqlへの命令 
-   */
-  private final function updateColumn($query) {
-      $update_flag = $this->mysqli->query($query);
-      if(!$update_flag) {
-          exit("失敗しました" . $this->mysqli->error);
-      } 
-  }
-  
   
 }
 

@@ -1,116 +1,286 @@
+<style>
+table {
+    border-collapse: collapse;
+}
+td {
+    border: solid 1px;
+    padding: 0.5em;
+}
+</style>
+
 <?php
 
 /**
- * 2013-09-29
- * データセットファイルからデータ読み込み、実力と難易度を計算するシミュレーションのメイン
- * 処理の流れとして
- * １：データセットファイルから一行ずつ読み込む
- * ２：一行ずつstatusテーブルに書き込む
- * ３：statusテーブルに書き込みが行われたら、実力と難易度の計算を走らせる
- * ４：計算後の値をユーザもしくは問題毎に逐次保存していく
- * ５：これをデータセット数繰り返す
+ * 2014-10-04
+ * シミュレーション全体の流れ
+ * 1:真の実力、真の難易度、テストデータ数を生成
+ * 2:実力と難易度を生成
+ * 3:誰がどの問題に挑戦したかを示すデータセットを生成
+ * 4:データセットを一つ取り出し、NomalUserModelを動かして結果を得る
+ * 5:結果をユーザと問題の履歴に記録
+ * 6:実力と難易度を再計算
+ * 7:4~6をデータセットの数だけ繰り返す
  */
+
 echo "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>";
 
-require_once("/Users/ishikawahitoshi/Sites/test-php/construct/const.php");
-require_once(REQUIER_PASS . "/UserAutoAssessments/UserAssessment.php");
-require_once(REQUIER_PASS . "/QuestionAutoAssessments/QuestionAssessment.php");
+//必要なファイルの読み込み
+require_once("./SimulationConst.php");
+require_once("./NomalUserModel.php");
+//require_once("./SimulationUserAssessment.php");
+//require_once("./SimulationQuestionAssessment.php");
 
-function writeStatusTable($data, $mysqli) {
-    list($user_id, $question_id, $result, $testdata_num, $correct_testdata_num) = explode(",", $data);
-    //テーブルの情報を更新するのか、それとも新しく追加するのか
-    $update_flag = chkSameColum($user_id, $question_id, $mysqli);
-    if(!$update_flag) { //新規追加
-        $query = "INSERT INTO status (user_id, question_id, result, testdata_num, correct_testdata_num, created_at) 
-                              VALUES ('$user_id', '$question_id', '$result', '$testdata_num', '$correct_testdata_num', now());";  
-    }else{ //更新
-        $query = "update status set result = '$result', testdata_num = '$testdata_num', 
-                                    correct_testdata_num = '$correct_testdata_num', created_at = now() 
-                                    where user_id = '$user_id' and question_id = '$question_id';";
-    }
-      
-    $char_set_flag = $mysqli->query($query);
-    if(!$char_set_flag) {
-      exit('失敗しました。'. $this->mysqli->error);
-    }
-    return array($user_id, $question_id);
-}
-//statusテーブルでuser_id,question_idの二つが一致するものは更新処理する
-function chkSameColum($user_id, $question_id, $mysqli) { 
-      $query = "SELECT id FROM status WHERE question_id = '$question_id' and user_id = '$user_id';";
-      $status_colum = $mysqli->query($query);
-      if($status_colum->fetch_assoc() == null) {
-          //printf("追加します");
-          return false;
-      }
-      //printf("更新します");
-      return true;
-}
-
-
-//ユーザの実力の推移をユーザ毎にファイルで保存
-function makeAbilityScoreTransitionFile($users_ability_score_transition) {
-    foreach ($users_ability_score_transition as $user_id => $ability_transition) {
-        $fp = fopen("./UserAbilityScoreTransition/User$user_id.txt", "w");
-        for($i = 0; $i < count($ability_transition); $i++) {
-            fwrite($fp, "$ability_transition[$i]\n");
+class SimulationRun{
+    //真の実力、真の難易度、その問題の全テストデータ数
+    private $user_true_ability_score = array();
+    private $question_true_difficult = array();
+    private $question_testdata_num   = array();
+    
+    /**
+     * 2013-10-02
+     * ３つの計算式を平行して動かすため、各計算式の実力と難易度がどのように変化したのかを
+     * 記録させるために用意した
+     */
+    //Orignal
+    private $orignal_user_ability_score = array();
+    private $orignal_question_difficult = array();
+    //Ishikawa
+    private $ishikawa_user_ability_score = array();
+    private $ishikawa_question_difficult = array();
+    //Terada
+    private $terada_user_ability_score = array();
+    private $terada_question_difficult = array();
+    
+    /**
+     * 2013-10-03
+     * どのユーザがどの問題に挑戦したかを示すデータセット
+     * $data_set = [[user_id, question_id].....]
+     */
+    private $data_set = array();
+     
+    /**
+     * 2013-10-04
+     * 各ユーザおよび各問題の履歴
+     * 最大で３０件ずつを必要とするため、配列の何番目に入れるのかを示すものも用意する
+     */
+    //$users_history = $questions_history = [[user_id, question_id, result, correct_testdata_num]]
+    private $users_history = array(array());
+    private $questions_history = array(array());
+    //各履歴上の何番目の要素が一番古いのかを示す配列
+    //これを基に次に上書きするべき場所を知る事ができる
+    //$users_oldest_history_number = [$users_historyにおいて最も古い履歴が入っている配列番号, ....]
+    private $users_oldest_history_number = array();
+    //$questions_oldest_history_number = [$questions_historyにおいて最も古い履歴が入っている配列番号, ....]
+    private $questions_oldest_history_number = array();
+    
+     
+    
+    /**
+     * 2013-10-02
+     * シミュレーションで使う「真の実力」「真の難易度」を1~10の範囲でランダム生成する
+     * また、各問題の「テストデータ数」を1~40の間で生成する
+     * 各データについては１００件ずつ作成される
+     * ユーザと問題の履歴の中で最も古い履歴を示す配列の番号を０で初期化する
+     */
+    private function initialize() {
+        for($i = 0; $i < DATA_NUM; $i++){
+            $true_ability_score = $this->getRandomRealNumber();
+            $true_difficult     = $this->getRandomRealNumber();
+            $this->user_true_ability_score[$i] = $true_ability_score;
+            $this->question_true_difficult[$i] = $true_difficult;
+            $this->question_testdata_num[$i]   = mt_rand(1, 40);
+            
+            //ユーザと問題の履歴を初期化
+            $this->users_history[$i][0] = array(-1, -1, -1, -1);
+            $this->questions_history[$i][0] = array(-1, -1, -1, -1);
+            
+            //ユーザと問題の履歴の中で最も古い履歴を示す配列の番号を０で初期化する
+            $this->users_oldest_history_number[$i] = 0;
+            $this->questions_oldest_history_number[$i] = 0;
         }
-        fclose($fp);
     }
-}
-
-//問題の難易度の推移を問題毎にファイルで保存
-function makeDifficultTransitionFile($questions_difficult_transition) {
-    foreach ($questions_difficult_transition as $question_id => $difficult_transition) {
-        $fp = fopen("./QuestionDifficultTransition/Question$question_id.txt", "w");
-        for($i = 0; $i < count($difficult_transition); $i++) {
-            fwrite($fp, "$difficult_transition[$i]\n");
+    
+    
+    /**
+     * 2013-10-02
+     * 各計算式におけるユーザの実力と問題の難易度を初期化するための関数
+     */
+    private function setAbilityScoreAndDifficult() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $ability_score = $this->getRandomRealNumber();
+            $this->orignal_user_ability_score[$i]  = $ability_score;
+            $this->ishikawa_user_ability_score[$i] = $ability_score;
+            $this->terada_user_ability_score[$i]   = $ability_score;
+            $difficult     = $this->getRandomRealNumber();
+            $this->orignal_question_difficult[$i]  = $difficult;
+            $this->ishikawa_question_difficult[$i] = $difficult; 
+            $this->terada_question_difficult[$i]   = $difficult;
         }
-        fclose($fp);
     }
-}
+     
+    
+    //1~10までの範囲で小数点第一位までの実数を返す
+    private function getRandomRealNumber() {
+        $r = mt_rand(1, 10);
+        $r = $r / 10;
+        $r = mt_rand(1, 9) + $r;
+        return $r;
+    }
+    
+    //データセットの生成
+    private function makeDataSet() {
+        for($i = 0; $i < 20; $i++) {
+            $data = array(mt_rand(0, 9), mt_rand(0, 9));
+            array_push($this->data_set, $data);
+        }
+    }
+    
+    /**
+     * 2013-10-05
+     * ユーザと問題の履歴を更新する関数
+     */
+    private function updateHistory($user_id, $question_id, $result, $correct_testdata_num) {
+        //ユーザの履歴を更新
+        $user_update_num = $this->users_oldest_history_number[$user_id];
+        $this->users_history[$user_id][$user_update_num] = 
+                array($user_id, $question_id, $result, $correct_testdata_num);
+        //履歴の中で次に更新すべき場所を決める
+        if($this->users_oldest_history_number[$user_id] < 29) {
+            $this->users_oldest_history_number[$user_id] += 1;
+        }else{
+            $this->users_oldest_history_number[$user_id] = 0;
+        }
+        
+        //問題の履歴を更新
+        $question_update_num = $this->questions_oldest_history_number[$question_id];
+        $this->questions_history[$question_id][$question_update_num] = 
+                array($user_id, $question_id, $result, $correct_testdata_num);
+        //履歴の中で次に更新すべき場所を決める
+        if($this->questions_oldest_history_number[$question_id] < 29) {
+            $this->questions_oldest_history_number[$question_id] += 1;
+        }else{
+            $this->questions_oldest_history_number[$question_id] = 0;
+        }
+    }
+    
+    /**
+     * 2013-10-04
+     * シミュレーションプログラムを走らせるためのメイン関数
+     */
+    public function Run() {
+        $nomal_user_model = new NomalUserModel();
+        //真の実力、真の難易度、問題のテストデータ数を生成
+        $this->initialize();
+        //実力と難易度の生成
+        $this->setAbilityScoreAndDifficult();
+        //データセットの生成
+        $this->makeDataSet();
+        printf("<table>");
+        printf("<tr>");
+        printf("<td>番号</td>");
+        printf("<td>ユーザID</td>");
+        printf("<td>真の実力</td>");
+        printf("<td>挑戦した問題ID</td>");
+        printf("<td>真の難易度</td>");
+        printf("<td>結果</td>");
+        printf("<td>テストデータ数</td>");
+        printf("<td>正解したテストデータ数</td>");
+        printf("</tr>");
+        for($i = 0; $i < count($this->data_set); $i++) {
+            $user_id = $this->data_set[$i][0];
+            $question_id = $this->data_set[$i][1];
+            $true_ability_score = $this->user_true_ability_score[$user_id];
+            $true_difficult     = $this->question_true_difficult[$question_id];
+            $testdata_num       = $this->question_testdata_num[$question_id];
+            list($result, $correct_testdata_num) = 
+                    $nomal_user_model->run($true_ability_score, $true_difficult, $testdata_num);
+            $this->updateHistory($user_id, $question_id, $result, $correct_testdata_num);
+            /**
+             * 2013-10-05
+             * 実力の更新と難易度の更新を平行して動かせるプログラムを導入すれば
+             * シミュレーション実験のプログラムが完成する
+             */
+            printf("<tr>");
+            printf("<td>$i</td>");
+            printf("<td>$user_id</td>");
+            printf("<td>$true_ability_score</td>");
+            printf("<td>$question_id</td>");
+            printf("<td>$true_difficult</td>");
+            printf("<td>$result</td>");
+            printf("<td>$testdata_num</td>");
+            printf("<td>$correct_testdata_num</td>");
+            printf("</tr>");
+        }
+        printf("</table>");
+        //履歴の更新がちゃんとできているか確認用プログラム
+        //$this->chkHistory();
+        //$this->chkQuestionHistory();
+        //$this->chkUpdateQuestionHistoryNum();
+        
+    }
 
+
+
+//--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
+    //履歴の更新がちゃんとできているか確認用プログラム
+    private function chkUserHistory() {
+        for($i = 0; $i < count($this->users_history); $i++) {
+            for($j = 0; $j < $this->users_oldest_history_number[$i]; $j++) {
+                printf("ユーザID : " . $this->users_history[$i][$j][0] . "<br>");
+                printf("問題番号 : " . $this->users_history[$i][$j][1] . "<br>");
+                printf("結果 : " . $this->users_history[$i][$j][2] . "<br>");
+                printf("正解数 : " . $this->users_history[$i][$j][3] . "<br>");
+            }
+            printf("<br>");
+        }
+        print_r($this->users_oldest_history_number);
+    }
+    
+    //一ユーザが挑戦した場合の件数を表示
+    private function chkUpdateUserHistoryNum() {
+        for($j = 0; $j < 30; $j++) {
+                printf("ユーザID : " . $this->users_history[0][$j][0] . "<br>");
+                printf("問題番号 : " . $this->users_history[0][$j][1] . "<br>");
+                printf("結果 : " . $this->users_history[0][$j][2] . "<br>");
+                printf("正解数 : " . $this->users_history[0][$j][3] . "<br>");
+                printf("<br>");
+        }
+        print_r($this->users_oldest_history_number);
+    }
+    
+    private function chkQuestionHistory() {
+        for($i = 0; $i < count($this->questions_history); $i++) {
+            for($j = 0; $j < $this->questions_oldest_history_number[$i]; $j++) {
+                printf("問題番号 : " . $this->questions_history[$i][$j][1] . "<br>");
+                printf("ユーザID : " . $this->questions_history[$i][$j][0] . "<br>");
+                printf("結果 : " . $this->questions_history[$i][$j][2] . "<br>");
+                printf("正解数 : " . $this->questions_history[$i][$j][3] . "<br>");
+            }
+            printf("<br>");
+        }
+        print_r($this->questions_oldest_history_number);
+    }
+    
+    private function chkUpdateQuestionHistoryNum() {
+        for($j = 0; $j < 30; $j++) {
+            printf("問題番号 : " . $this->questions_history[0][$j][1] . "<br>");
+            printf("ユーザID : " . $this->questions_history[0][$j][0] . "<br>");
+            printf("結果 : " . $this->questions_history[0][$j][2] . "<br>");
+            printf("正解数 : " . $this->questions_history[0][$j][3] . "<br>");
+            printf("<br>");
+        }
+        print_r($this->questions_oldest_history_number);
+    }
+//--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
+} 
 
 /**
- * ここがシミュレーションを走らせているMainの場所
+ * 2013/10/2
+ * シミュレーション実験向けに全ての処理をメインメモリ上で行うように変更する
+ * 旧バージョン=>「OldSimulationRun.php」
  */
-//実力を計算
-$user_assessment     = new UserAssessment();
-//難易度を計算
-$question_assessment = new QuestionAssessment();
 
-$i = 1;
+$simulation_run = new SimulationRun();
+$simulation_run->Run();
 
-//ファイルからデータセットを読み込む
-$fp = fopen("test-data-set.txt", "r");
-
-//データベースと接続
-$mysqli = DatabaseConnection();
-//ユーザ毎の実力の推移を記録するHash
-//$users_ability_score_transition = {user_id => [3.4, 4.5, 4.2...]}
-$users_ability_score_transition = array();
-//問題毎の難易度の推移を記録するHash
-//$questions_difficult_transition = {question_id => [3.4, 4.5, 4.2...]}
-$questions_difficult_transition = array();
-
-while ($data = fgets($fp)) {
-  //statusテーブルに書き込む
-  list($user_id, $question_id) = writeStatusTable($data, $mysqli);
-  
-  printf($i . "回目<br>");
-  printf("ユーザID = $user_id<br>");
-  $users_ability_score_transition = $user_assessment->Assessment($user_id, $users_ability_score_transition);
-  printf("問題ID = $question_id<br>");
-  $questions_difficult_transition = $question_assessment->Assessment($question_id, $questions_difficult_transition);        
-  printf("-------------------------------------------<br>");
-  $i++;
-}
-//ユーザ毎の推移をファイルで保存
-makeAbilityScoreTransitionFile($users_ability_score_transition);
-//問題毎の推移をファイルで保存
-makeDifficultTransitionFile($questions_difficult_transition);
-
-$mysqli->close();
-fclose($fp);
- 
 ?>

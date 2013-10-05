@@ -19,7 +19,7 @@
               break;
           default:
               //簡単な問題だったかどうか
-              if($ability_score >= $difficult) $delta = 1;
+              if($ability_score > $difficult) $delta = 1;
               break;
       }
       printf("結果＝" . $status["result"] . "  δ＝$delta <br>");

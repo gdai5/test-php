@@ -8,12 +8,18 @@
    */
   function teradaUserDeltaFlag($difficult, $ability_score ,$status) {
       printf("問題番号" . $status["question_id"] . "　:　難易度＝" . $difficult . "<br>");
-      if ($ability_score >= $difficult) {
+      if ($ability_score > $difficult) {
           //簡単な問題にチャレンジした時の処理
           $delta = selectEasyQuestion($status);
-      } else {
+      }
+      if ($ability_score < $difficult){
           //難し問題にチャレンジした時の処理
           $delta = selectDifficultQuestion($status);
+      }
+      if ($ability_score == $difficult) {
+          //同じ難易度の問題に挑戦した場合はどんな結果であれ意味がないため
+          //計算に影響を与えないようにしている
+          $delta = 0;
       }
       printf("結果＝" . $status["result"] . "  δ＝$delta <br>");
       return $delta;
@@ -36,7 +42,7 @@
                $delta = 0.5;
                break;
            case CLOSE_ANSWER:
-               $delta = 0.5 - 0.5 * ($status["correct_answers"] / $status["testdatas_num"]);
+               $delta = 0.5 - 0.5 * ($status["correct_testdata_num"] / $status["testdata_num"]);
                break;
            case ACCEPTED:
                $delta = 0;
@@ -62,7 +68,7 @@
                $delta = 0;
                break;
            case CLOSE_ANSWER:
-               $delta = 0.5 + 0.5 * ($status["correct_answers"] / $status["testdatas_num"]);
+               $delta = 0.5 + 0.5 * ($status["correct_testdata_num"] / $status["testdata_num"]);
                break;
            case ACCEPTED:
                $delta = 1;
