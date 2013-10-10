@@ -10,4 +10,10 @@
   define("NOT_CORRECT", 2);
   define("CLOSE_ANSWER", 3);
   define("ACCEPTED", 4);
+  
+  define("USER_ID", 0);
+  define("QUESTION_ID", 1);
+  define("RESULT", 2);
+  define("CORRECT_TESTDATA_NUM", 3);
+  define("TESTDATA_NUM", 4);
 ?>

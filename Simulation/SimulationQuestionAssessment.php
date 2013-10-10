@@ -1,139 +1,128 @@
 <?php
 
-class QuestionAssessment {
-  private $mysqli;
-   
-  /**
-   * まだデバックしていないので、要動作確認（7/23）
-   * 問題の難易度を計算する
-   */
-  public final function Assessment($question_id, $questions_difficult_transition) {
-      $this->mysqli = DatabaseConnection();
-      $difficult = $this->getDifficult($question_id);
-      //新規追加する場合だけ
-      if (!array_key_exists($question_id, $questions_difficult_transition)) {
-          $questions_difficult_transition["$question_id"] = array($difficult);
-      } 
-      $new_difficult = $this->DifficultCalculation($question_id, $difficult);
-      //難易度の推移を記録
-      array_push($questions_difficult_transition["$question_id"], $new_difficult);
-      $this->updateNewDifficult($question_id, $new_difficult);
-      $this->mysqli->close(); 
-      return $questions_difficult_transition;
-  }
-  
-  
-  /**
-   * 引数のquestion_idと一致する問題の難易度（difficult）を取ってくる
-   * @param question_id    問題ID
-   * @return difficult     難易度
-   */
-  private final function getDifficult($question_id) {
-      $query = "SELECT difficult FROM questions WHERE id = '$question_id';";
-      $query_result = $this->mysqli->query($query);
-      while($row = $query_result->fetch_assoc()) {
-          $difficult = $row["difficult"];
-      }
-      return $difficult;
-  }
-  
-  /**
-   * 問題の難易度を計算する
-   * @param question_id    問題ID
-   * @param difficult      難易度
-   * @return new_difficult 再計算された難易度
-   */
-  private final function DifficultCalculation($question_id, $difficult) {
-       $new_difficult = 0;
-       $xi_count = 0;
-       //降順でユーザの履歴を取得する
-       $query = "SELECT * FROM status WHERE question_id = '$question_id' ORDER BY created_at DESC LIMIT 30";
-       $question_status = $this->getHistory($query);
-       //$question_statusに最新３０件全てが入っているので
-       //それを一つずつ計算していく
-       printf("問題の難易度：$difficult <br>");
-       while ($status = $question_status->fetch_assoc()) {
-           $query = "SELECT ability_score FROM users WHERE id = '" . $status["user_id"] . "';";
-           $query_result = $this->mysqli->query($query);
-           //テーブルの要素を抜き出す
-           while($row = $query_result->fetch_assoc()) {
-               $ability_score = $row['ability_score'];
-           }
-           printf("ユーザ" . $status["user_id"] . "　:　実力　＝" . $ability_score . "<br>");
-           $xi = $this->QuestionDeltaFlag($difficult, $ability_score, $status);
-           printf("結果＝" . $status["result"] . "  ξ＝$xi <br>");
-           if($xi != 0) {
-               $new_difficult += $ability_score - $difficult;
-               $xi_count++;
-           }
-       }
-       if($xi_count != 0) {
-           $new_difficult = $new_difficult / $xi_count;
-       }
-       $new_difficult += $difficult;
-       printf("新しい問題の難易度＝$new_difficult<br>");
-       return $new_difficult;
-  }
+require_once("./QuestionAssessment/SimulationOrignalQuestionAssessment.php");
 
+class SimulationQuestionAssessment {
+    private $orignal_difficult_transition = array();
+    
+    //今現在の難易度を保管
+    private $orignal_difficult = array();
+    
+    private $orignal_question_assessment;
+    
+    /**
+     * 難易度の推移と今現在の難易度を保管する配列たちを初期化
+     */
+    function initialize() {
+       for($i = 0; $i < DATA_NUM; $i++) {
+           $difficult = mt_rand(1, 10);
+           $this->orignal_difficult_transition["$i"] = array($difficult);
+           $this->orignal_difficult[$i] = $difficult;
+       }
+       $this->orignal_question_assessment = new SimulationOrignalQuestionAssessment();
+    }
+    
+    public function Assessment($question_history, $user_assessment) {
+         //各計算でξが0以外になった回数をカウント
+        $orignal_xi_count = 0;
+      
+        //各計算式で求まった新しい難易度
+        $orignal_new_difficult = 0;
+        
+        //2013-10-10
+        //計算が正しく行われているかを確認するため
+        $this->outputQuestionHistory($question_history, $user_assessment);
+        
+        //保存されている履歴の回数分計算を繰り返す
+        for ($i = 0; $i < count($question_history); $i++) {
+            list($orignal_xi_count, $orignal_new_difficult) = 
+                $this->orignalQuestionAssessment($question_history[$i], $orignal_xi_count, $orignal_new_difficult, $user_assessment);
+        }
+        $this->getOrignalNewDifficult($question_history[0][QUESTION_ID], $orignal_xi_count, $orignal_new_difficult);
+    }
+    
+    /**
+     * 2013-10-08
+     * 問題の難易度を計算するプログラム
+     */
+    private function orignalQuestionAssessment($history_data, $orignal_xi_count, $orignal_new_difficult, $user_assessment) {
+        //計算を行う前に必要なものを変数に入れておく
+        $user_id       = $history_data[USER_ID];
+        $question_id   = $history_data[QUESTION_ID];
+        $result        = $history_data[RESULT];
+        $difficult     = $this->orignal_difficult[$question_id];
+        $ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
+        
+        //ここから問題の難易度計算を行う
+        $xi = $this->orignal_question_assessment->orignalQuestionXiFlag($difficult, $ability_score ,$result);
+        //出力用
+        $this->outputHistorySum($ability_score, $difficult, $xi);
+        if($xi > 0) {
+                $orignal_new_difficult += ($ability_score - $difficult) * $xi;
+                $orignal_xi_count++;
+        } 
+        return array($orignal_xi_count, $orignal_new_difficult);
+    }
+    
+    /**
+     * 2013-10-08
+     * 履歴の計算が全て終わったら、最終的な難易度を計算する
+     */
+    private function getOrignalNewDifficult($question_id, $orignal_xi_count, $orignal_new_difficult) {
+        printf("　＝　$orignal_new_difficult<br>");
+        if($orignal_xi_count > 0) {
+            printf("ξが０より大きくなった回数が１回以上あったので<br>");
+            printf("追加する難易度　＝　" . $orignal_new_difficult . " / " . $orignal_xi_count);
+            $orignal_new_difficult = $orignal_new_difficult / $orignal_xi_count;
+            printf("　＝　$orignal_new_difficult<br>");
+        }
+        printf("最後に最終的な難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
+        $orignal_new_difficult += $this->orignal_difficult[$question_id];
+        printf("　＝　" . $orignal_new_difficult . "<br><br>");
+        array_push($this->orignal_difficult_transition["$question_id"], $orignal_new_difficult);
+        $this->orignal_difficult[$question_id] = $orignal_new_difficult;
+    }
 
-  /**
-   * @param query MySQLの命令文
-   * @return status statusテーブルから条件に合った要素が入っている連想配列
-   */
-  private final function getHistory($query) {
-      $status = $this->mysqli->query($query);
-      if(!$status) {
-         printf("QuestionsAssessment");
-         exit('問題の履歴取得に失敗しました'. $this->mysqli->error);
-      }
-      return $status;
-  }
-  
-  /**
-   * 難易度の計算式においてξが1 or 0かをチェックする
-   * 失敗として認識するもの：CompileError, RuntimeError, NotCorrect, CloseAnswer
-   * 成功として認識するもの：Accepted
-   * @param difficult 問題の難易度
-   * @param ability_score ユーザの実力
-   * @param $status       statusテーブル１行分の情報が入っている連想配列
-   * @return delta 計算をする場合は1, そうでない場合は0 
-   */
-  private final function QuestionDeltaFlag($difficult, $ability_score ,$status) {
-      $xi = 0;
-      switch ($status["result"]) {
-          case ACCEPTED:
-              if($ability_score < $difficult) $xi = 1;
-              break;
-          default:
-              if($ability_score > $difficult) $xi = 1;
-              break;
-      }
-      return $xi;
-  }
-  
-  
-  /**
-   * 新しく計算された難易度をquetsionsテーブルに更新する
-   * @param question_id 問題ID
-   * @param new_difficult 再計算した難易度
-   */
-  private final function updateNewDifficult($question_id, $new_difficult) {
-      $query = "update questions set difficult = '$new_difficult' where id = '$question_id';";
-      $this->updateColumn($query);
-  }
-  
-  
-  /**
-   * 実力or難易度のupdate用の関数
-   * @param query mysqlへの命令 
-   */
-  private final function updateColumn($query) {
-      $update_flag = $this->mysqli->query($query);
-      if(!$update_flag) {
-          exit("失敗しました" . $this->mysqli->error);
-      } 
-  }
-  
+    //最後に出力結果の確認
+    public function outputTransition() {
+        print_r($this->orignal_difficult_transition);
+    }
+    
+    //SimlationUserAssessment.phpで使う難易度を取得するための関数
+    public function getOrignalQuestionDifficult($question_id) {
+        return $this->orignal_difficult[$question_id];
+    }
+    
+    //これ以降は計算が正しく行われているかをチャックするための関数
+    private function outputQuestionHistory($question_history, $user_assessment) {
+        printf("問題" . $question_history[0][QUESTION_ID] . "の履歴<br>");
+        printf("計算前の問題の難易度　＝　" . $this->orignal_difficult[$question_history[0][QUESTION_ID]] . "<br>");
+        printf("<table>");
+        printf("<tr>");
+        printf("<td>挑戦したユーザID</td>");
+        printf("<td>実力</td>");
+        printf("<td>結果</td>");
+        printf("<td>テストデータ数</td>");
+        printf("<td>正解したテストデータ数</td>");
+        printf("</tr>");
+        for($i = 0; $i < count($question_history); $i++) {
+            printf("<tr>");
+            printf("<td>" . $question_history[$i][USER_ID] . "</td>");
+            printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
+            printf("<td>" . $question_history[$i][RESULT] . "</td>");
+            printf("<td>" . $question_history[$i][TESTDATA_NUM] . "</td>");
+            printf("<td>" . $question_history[$i][CORRECT_TESTDATA_NUM] . "</td>");
+            printf("</tr>");
+        }
+        printf("</table>");
+        printf("<br>");
+        printf("履歴の総和　＝　");
+    }
+
+    private function outputHistorySum($ability_score, $difficult, $xi) {
+        printf("(" . $ability_score . " - " . $difficult . ")*" . $xi . "  + ");
+    }
+    
 }
 
 ?>
