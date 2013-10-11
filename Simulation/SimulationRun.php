@@ -180,25 +180,13 @@ class SimulationRun{
      * シミュレーションプログラムを走らせるためのメイン関数
      */
     public function Run() {
+        //真の実力、真の難易度、問題のテストデータ数を生成
         $this->initialize();
         //実力と難易度の生成
         $this->setAbilityScoreAndDifficult();
         //データセットの生成
         $this->makeDataSet();
         $nomal_user_model    = new NomalUserModel();
-        //真の実力、真の難易度、問題のテストデータ数を生成
-        
-        // printf("<table>");
-        // printf("<tr>");
-        // printf("<td>番号</td>");
-        // printf("<td>ユーザID</td>");
-        // printf("<td>真の実力</td>");
-        // printf("<td>挑戦した問題ID</td>");
-        // printf("<td>真の難易度</td>");
-        // printf("<td>結果</td>");
-        // printf("<td>テストデータ数</td>");
-        // printf("<td>正解したテストデータ数</td>");
-        // printf("</tr>");
         
         //計算回数のカウント用
         $round = 1;
@@ -220,23 +208,12 @@ class SimulationRun{
             $this->question_assessment->Assessment($this->questions_history[$question_id], $this->user_assessment);
             printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
             $round++;
-            // printf("<tr>");
-            // printf("<td>$i</td>");
-            // printf("<td>$user_id</td>");
-            // printf("<td>$true_ability_score</td>");
-            // printf("<td>$question_id</td>");
-            // printf("<td>$true_difficult</td>");
-            // printf("<td>$result</td>");
-            // printf("<td>$testdata_num</td>");
-            // printf("<td>$correct_testdata_num</td>");
-            // printf("</tr>");
         }
-       // printf("</table>");
-        
         //履歴の更新がちゃんとできているか確認用プログラム
         //$this->chkUserHistory();
         //$this->chkQuestionHistory();
         //$this->chkUpdateQuestionHistoryNum();
+        $this->outputTrueAbilityScoreAndDifficult();
         
     }
 
@@ -341,6 +318,25 @@ class SimulationRun{
         }
         printf("</table>");
         print_r($totaling);
+    }
+
+    private function outputTrueAbilityScoreAndDifficult() {
+        printf("<table>");
+        printf("<tr>");
+        printf("<td>ユーザID</td>");
+        printf("<td>真の実力</td>");
+        printf("<td>挑戦した問題ID</td>");
+        printf("<td>真の難易度</td>");
+        printf("</tr>");
+        for($i = 0; $i < count($this->true_ability_scores); $i++) {
+            printf("<tr>");
+            printf("<td>$i</td>");
+            printf("<td>" . $this->true_ability_scores[$i] . "</td>");
+            printf("<td>$i</td>");
+            printf("<td>" . $this->true_difficult[$i] . "</td>");
+            printf("</tr>");
+        }
+        printf("</table>");
     }
 //--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
 } 
