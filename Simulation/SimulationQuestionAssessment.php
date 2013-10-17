@@ -51,7 +51,10 @@ class SimulationQuestionAssessment {
         $question_id   = $history_data[QUESTION_ID];
         $result        = $history_data[RESULT];
         $difficult     = $this->orignal_difficult[$question_id];
-        $ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
+        //現状の実力を持ってくる場合
+        //$ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
+        //当時の実力を持ってくる場合
+        $ability_score = $history_data[ABILITY_SCORE];
         
         //ここから問題の難易度計算を行う
         $xi = $this->orignal_question_assessment->orignalQuestionXiFlag($difficult, $ability_score ,$result);
@@ -74,13 +77,41 @@ class SimulationQuestionAssessment {
             printf("ξが０より大きくなった回数が１回以上あったので<br>");
             printf("追加する難易度　＝　" . $orignal_new_difficult . " / " . $orignal_xi_count);
             $orignal_new_difficult = $orignal_new_difficult / $orignal_xi_count;
+            //小数点第二位で四捨五入する
+            $orignal_new_difficult = $orignal_new_difficult * 10;
+            $orignal_new_difficult = round($orignal_new_difficult);
+            $orignal_new_difficult = $orignal_new_difficult / 10;
             printf("　＝　$orignal_new_difficult<br>");
         }
         printf("最後に最終的な難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
         $orignal_new_difficult += $this->orignal_difficult[$question_id];
+        //小数点第二位で四捨五入する
+        $orignal_new_difficult = $orignal_new_difficult * 10;
+        $orignal_new_difficult = round($orignal_new_difficult);
+        $orignal_new_difficult = $orignal_new_difficult / 10;
         printf("　＝　" . $orignal_new_difficult . "<br><br>");
         array_push($this->orignal_difficult_transition["$question_id"], $orignal_new_difficult);
         $this->orignal_difficult[$question_id] = $orignal_new_difficult;
+    }
+
+    /**
+     * 2013-10-14
+     * 石川
+     * 全てのability_scores_transitionをファイルに記録する
+     */
+    public function writeDifficultTransition() {
+        $this->writeOrignalTransition();
+    }
+    
+    private function writeOrignalTransition() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $file_name = "./QuestionTransition/Orignal/Question" . $i . ".txt";
+            $fp = fopen($file_name, "w");
+            for($j = 0; $j < count($this->orignal_difficult_transition[$i]); $j++) {
+                fwrite($fp, $this->orignal_difficult_transition[$i][$j] . "\n");
+            }
+            fclose($fp);
+        }
     }
 
     //最後に出力結果の確認
@@ -100,7 +131,8 @@ class SimulationQuestionAssessment {
         printf("<table>");
         printf("<tr>");
         printf("<td>挑戦したユーザID</td>");
-        printf("<td>実力</td>");
+        //printf("<td>実力</td>");
+        printf("<td>挑戦した当時の実力</td>");
         printf("<td>結果</td>");
         printf("<td>テストデータ数</td>");
         printf("<td>正解したテストデータ数</td>");
@@ -108,7 +140,10 @@ class SimulationQuestionAssessment {
         for($i = 0; $i < count($question_history); $i++) {
             printf("<tr>");
             printf("<td>" . $question_history[$i][USER_ID] . "</td>");
-            printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
+            //計算を始めるときの実力
+            //printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
+            //挑戦した当時の実力
+            printf("<td>" . $question_history[$i][ABILITY_SCORE] . "</td>");
             printf("<td>" . $question_history[$i][RESULT] . "</td>");
             printf("<td>" . $question_history[$i][TESTDATA_NUM] . "</td>");
             printf("<td>" . $question_history[$i][CORRECT_TESTDATA_NUM] . "</td>");

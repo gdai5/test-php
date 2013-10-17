@@ -16,4 +16,5 @@
   define("RESULT", 2);
   define("CORRECT_TESTDATA_NUM", 3);
   define("TESTDATA_NUM", 4);
+  define("ABILITY_SCORE", 5);
 ?>

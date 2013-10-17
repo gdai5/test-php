@@ -21,6 +21,14 @@ td {
  * 6:実力と難易度を再計算
  * 7:4~6をデータセットの数だけ繰り返す
  */
+ 
+/**
+ * 2014-10-14
+ * 石川
+ * オリジナルの計算式を完成させて動かしてみたが、論文通りの結果を得られなかった
+ * そこで原因究明を考える
+ * 途中で、問題の難易度が一定の値で固まってしまうためそれ以降変化が起きない
+ */
 
 //近い内に、ユーザモデルが正しいかどうか検査する
 echo "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>";
@@ -36,20 +44,6 @@ class SimulationRun{
     private $true_ability_scores = array();
     private $true_difficult = array();
     private $question_testdata_num   = array();
-    
-    /**
-     * 2013-10-02
-     * ３つの計算式を平行して動かすため、各計算毎に実力と難易度を書き込む配列を用意した
-     */
-    //Orignal
-    private $orignal_ability_score = array();
-    private $orignal_difficult = array();
-    //Ishikawa
-    private $ishikawa_ability_score = array();
-    private $ishikawa_difficult = array();
-    //Terada
-    private $terada_ability_score = array();
-    private $terada_difficult = array();
     
     /**
      * 2013-10-03
@@ -84,18 +78,27 @@ class SimulationRun{
      * また、各問題の「テストデータ数」を1~40の間で生成する
      * 各データについては１００件ずつ作成される
      * ユーザと問題の履歴の中で最も古い履歴を示す配列の番号を０で初期化する
+     * 2013-10-15
+     * $true_ability_score = $i;
+     * $true_difficult     = $i;
+     * このように変えてしまったので原因が究明できたら修正
      */
     private function initialize() {
         for($i = 0; $i < DATA_NUM; $i++){
-            $true_ability_score = $this->getRandomRealNumber();
-            $true_difficult     = $this->getRandomRealNumber();
+            $true_ability_score = $i;
+            $true_difficult     = $i;
             $this->true_ability_scores[$i] = $true_ability_score;
             $this->true_difficult[$i] = $true_difficult;
             $this->question_testdata_num[$i]   = mt_rand(1, 40);
             
-            //ユーザと問題の履歴を初期化
-            $this->users_history[$i][0] = array(-1, -1, -1, -1, -1);
-            $this->questions_history[$i][0] = array(-1, -1, -1, -1, -1);
+            //ユーザの履歴を初期化
+            $this->users_history[$i][0] = array();
+            /**
+             * 問題の履歴を初期化
+             * ただし、この履歴に関してはある一定時間取った後に計算を行い
+             * その後初期化する
+             */
+            $this->questions_history[$i][0] = array();
             
             //ユーザと問題の履歴の中で最も古い履歴を示す配列の番号を０で初期化する
             $this->users_oldest_history_number[$i] = 0;
@@ -141,17 +144,21 @@ class SimulationRun{
     
     //データセットの生成
     private function makeDataSet() {
-        for($i = 0; $i < 20; $i++) {
-            $data = array(mt_rand(0, 9), mt_rand(0, 9));
-            array_push($this->data_set, $data);
+        for($i = 0; $i < 50; $i++) {
+            for($j = 0; $j < DATA_NUM; $j++) {
+                $data = array($j, mt_rand(0, 9));
+                array_push($this->data_set, $data);
+            }
         }
     }
     
+    
+    
     /**
      * 2013-10-05
-     * ユーザと問題の履歴を更新する関数
+     * ユーザの履歴を更新する関数
      */
-    private function updateHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num) {
+    private function updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num) {
         //ユーザの履歴を更新
         $user_update_num = $this->users_oldest_history_number[$user_id];
         $this->users_history[$user_id][$user_update_num] = 
@@ -162,17 +169,22 @@ class SimulationRun{
         }else{
             $this->users_oldest_history_number[$user_id] = 0;
         }
-        
+    }
+    
+    /**
+     * 2013-10-11
+     * 難易度の計算ロジックが実力と異なるため別々に分けた
+     * 2013-10-15
+     * ここにはその当時の実力を追加しないとだめかも・・・
+     */
+    private function updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num) {
+        //問題に挑戦した当時の実力を取得するための関数
+        $ability_score = $this->user_assessment->getOrignalUserAbilityScore($user_id);
         //問題の履歴を更新
         $question_update_num = $this->questions_oldest_history_number[$question_id];
         $this->questions_history[$question_id][$question_update_num] = 
-                array($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
-        //履歴の中で次に更新すべき場所を決める
-        if($this->questions_oldest_history_number[$question_id] < 29) {
-            $this->questions_oldest_history_number[$question_id] += 1;
-        }else{
-            $this->questions_oldest_history_number[$question_id] = 0;
-        }
+                array($user_id, $question_id, $result, $correct_testdata_num, $testdata_num, $ability_score);
+        $this->questions_oldest_history_number[$question_id] += 1;
     }
     
     /**
@@ -198,14 +210,32 @@ class SimulationRun{
             $testdata_num       = $this->question_testdata_num[$question_id];
             list($result, $correct_testdata_num) = 
                     $nomal_user_model->run($true_ability_score, $true_difficult, $testdata_num);
-            $this->updateHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
+            $this->updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
+            $this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             //ユーザの実力計算
             printf("-------------------" . $round . "回目の計算-------------------<br>");
             $this->user_assessment->Assessment($this->users_history[$user_id], $this->question_assessment);
-            //2013-10-08
-            //次回はここに問題の定義を追加して実験
-            //問題の難易度計算
-            $this->question_assessment->Assessment($this->questions_history[$question_id], $this->user_assessment);
+            /**
+             * 2013-10-11
+             * 問題の難易度計算
+             * 100回毎に全ての難易度の計算を行う
+             * 計算が終わったら、計算に使った履歴を削除する
+             * 無事動いている様子なので、検証する
+             */ 
+            if($round % 100 == 0) {
+                //printf("10回回ったので難易度計算を開始<br>");
+                //直接問題の数を入れる
+                for($j = 0; $j < count($this->questions_history); $j++) {
+                    //一回以上誰かに問題を解かれているかどうか確認している
+                    if($this->questions_oldest_history_number[$j] != 0) {
+                        $this->question_assessment->Assessment(
+                        $this->questions_history[$j], $this->user_assessment);
+                        $this->questions_history[$j] = array();
+                        $this->questions_history[$j][0] = array();
+                        $this->questions_oldest_history_number[$j] = 0;
+                    }
+                }
+            }
             printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
             $round++;
         }
@@ -213,11 +243,40 @@ class SimulationRun{
         //$this->chkUserHistory();
         //$this->chkQuestionHistory();
         //$this->chkUpdateQuestionHistoryNum();
-        $this->outputTrueAbilityScoreAndDifficult();
+        //$this->outputTrueAbilityScoreAndDifficult();
+        $this->user_assessment->writeAbilityScoreTransition();
+        $this->question_assessment->writeDifficultTransition();
+        $this->writeTrueAbilityScore();
+        $this->writeTrueDifficult();
+        printf("無事終わりました");
         
     }
 
-
+    /**
+     * 2013-10-14
+     * 石川
+     * 真の実力を保存するための関数
+     */
+    private function writeTrueAbilityScore() {
+        $fp = fopen("./UserTransition/TrueAbilityScore.txt", "w");
+        for($i = 0; $i < count($this->true_ability_scores); $i++) {
+            fwrite($fp, $i . "番目" . $this->true_ability_scores[$i] . "\n");
+        }
+        fclose($fp);
+    }
+    
+     /**
+     * 2013-10-14
+     * 石川
+     * 真の難易度を保存するための関数
+     */
+    private function writeTrueDifficult() {
+        $fp = fopen("./QuestionTransition/TrueDifficult.txt", "w");
+        for($i = 0; $i < count($this->true_difficult); $i++) {
+            fwrite($fp, $i . "番目" . $this->true_difficult[$i] . "\n");
+        }
+        fclose($fp);
+    }
 
 //--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
     //履歴の更新がちゃんとできているか確認用プログラム

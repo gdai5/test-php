@@ -99,13 +99,41 @@ class SimulationUserAssessment {
             printf("δが０より大きくなった回数が１回以上あったので<br>");
             printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
             $orignal_new_ability_score = $orignal_new_ability_score / $orignal_delta_count;
+            //小数点第二位で四捨五入する
+            $orignal_new_ability_score = $orignal_new_ability_score * 10;
+            $orignal_new_ability_score = round($orignal_new_ability_score);
+            $orignal_new_ability_score = $orignal_new_ability_score / 10;
             printf("　＝　$orignal_new_ability_score<br>");
         }
         printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
         $orignal_new_ability_score += $this->orignal_ability_scores[$user_id];
+        //小数点第二位で四捨五入する
+        $orignal_new_ability_score = $orignal_new_ability_score * 10;
+        $orignal_new_ability_score = round($orignal_new_ability_score);
+        $orignal_new_ability_score = $orignal_new_ability_score / 10;
         printf("　＝　" . $orignal_new_ability_score . "<br><br>");
         array_push($this->orignal_ability_scores_transition["$user_id"], $orignal_new_ability_score);
         $this->orignal_ability_scores[$user_id] = $orignal_new_ability_score;
+    }
+    
+    /**
+     * 2013-10-14
+     * 石川
+     * 全てのability_scores_transitionをファイルに記録する
+     */
+    public function writeAbilityScoreTransition() {
+        $this->writeOrignalTransition();
+    }
+    
+    private function writeOrignalTransition() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $file_name = "./UserTransition/Orignal/User" . $i . ".txt";
+            $fp = fopen($file_name, "w");
+            for($j = 0; $j < count($this->orignal_ability_scores_transition[$i]); $j++) {
+                fwrite($fp, $this->orignal_ability_scores_transition[$i][$j] . "\n");
+            }
+            fclose($fp);
+        }
     }
 
     public function outputTransition() {
