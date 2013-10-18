@@ -31,7 +31,7 @@ class SimulationQuestionAssessment {
         
         //2013-10-10
         //計算が正しく行われているかを確認するため
-        $this->outputQuestionHistory($question_history, $user_assessment);
+        //$this->outputQuestionHistory($question_history, $user_assessment);
         
         //保存されている履歴の回数分計算を繰り返す
         for ($i = 0; $i < count($question_history); $i++) {
@@ -52,14 +52,14 @@ class SimulationQuestionAssessment {
         $result        = $history_data[RESULT];
         $difficult     = $this->orignal_difficult[$question_id];
         //現状の実力を持ってくる場合
-        //$ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
+        $ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
         //当時の実力を持ってくる場合
-        $ability_score = $history_data[ABILITY_SCORE];
+        //$ability_score = $history_data[ABILITY_SCORE];
         
         //ここから問題の難易度計算を行う
         $xi = $this->orignal_question_assessment->orignalQuestionXiFlag($difficult, $ability_score ,$result);
         //出力用
-        $this->outputHistorySum($ability_score, $difficult, $xi);
+        //$this->outputHistorySum($ability_score, $difficult, $xi);
         if($xi > 0) {
                 $orignal_new_difficult += ($ability_score - $difficult) * $xi;
                 $orignal_xi_count++;
@@ -72,24 +72,24 @@ class SimulationQuestionAssessment {
      * 履歴の計算が全て終わったら、最終的な難易度を計算する
      */
     private function getOrignalNewDifficult($question_id, $orignal_xi_count, $orignal_new_difficult) {
-        printf("　＝　$orignal_new_difficult<br>");
+        //printf("　＝　$orignal_new_difficult<br>");
         if($orignal_xi_count > 0) {
-            printf("ξが０より大きくなった回数が１回以上あったので<br>");
-            printf("追加する難易度　＝　" . $orignal_new_difficult . " / " . $orignal_xi_count);
+            //printf("ξが０より大きくなった回数が１回以上あったので<br>");
+            //printf("追加する難易度　＝　" . $orignal_new_difficult . " / " . $orignal_xi_count);
             $orignal_new_difficult = $orignal_new_difficult / $orignal_xi_count;
             //小数点第二位で四捨五入する
             $orignal_new_difficult = $orignal_new_difficult * 10;
             $orignal_new_difficult = round($orignal_new_difficult);
             $orignal_new_difficult = $orignal_new_difficult / 10;
-            printf("　＝　$orignal_new_difficult<br>");
+            //printf("　＝　$orignal_new_difficult<br>");
         }
-        printf("最後に最終的な難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
+        //printf("最後に最終的な難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
         $orignal_new_difficult += $this->orignal_difficult[$question_id];
         //小数点第二位で四捨五入する
         $orignal_new_difficult = $orignal_new_difficult * 10;
         $orignal_new_difficult = round($orignal_new_difficult);
         $orignal_new_difficult = $orignal_new_difficult / 10;
-        printf("　＝　" . $orignal_new_difficult . "<br><br>");
+        //printf("　＝　" . $orignal_new_difficult . "<br><br>");
         array_push($this->orignal_difficult_transition["$question_id"], $orignal_new_difficult);
         $this->orignal_difficult[$question_id] = $orignal_new_difficult;
     }
@@ -131,8 +131,8 @@ class SimulationQuestionAssessment {
         printf("<table>");
         printf("<tr>");
         printf("<td>挑戦したユーザID</td>");
-        //printf("<td>実力</td>");
-        printf("<td>挑戦した当時の実力</td>");
+        printf("<td>実力</td>");
+        //printf("<td>挑戦した当時の実力</td>");
         printf("<td>結果</td>");
         printf("<td>テストデータ数</td>");
         printf("<td>正解したテストデータ数</td>");
@@ -141,9 +141,9 @@ class SimulationQuestionAssessment {
             printf("<tr>");
             printf("<td>" . $question_history[$i][USER_ID] . "</td>");
             //計算を始めるときの実力
-            //printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
+            printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
             //挑戦した当時の実力
-            printf("<td>" . $question_history[$i][ABILITY_SCORE] . "</td>");
+            //printf("<td>" . $question_history[$i][ABILITY_SCORE] . "</td>");
             printf("<td>" . $question_history[$i][RESULT] . "</td>");
             printf("<td>" . $question_history[$i][TESTDATA_NUM] . "</td>");
             printf("<td>" . $question_history[$i][CORRECT_TESTDATA_NUM] . "</td>");

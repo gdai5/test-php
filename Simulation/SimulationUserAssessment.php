@@ -20,6 +20,10 @@ class SimulationUserAssessment {
     //オリジナルの計算式を利用するために呼び出す
     private $orignal_user_assessment;
     
+    //2013-10-17
+    //正規化を用いる為にそのユーザが何回正解したかをカウントしておくもの
+    private $accepted_counter = array();
+    
     /**
      * 実力の推移と今現在の実力を保管する配列たちを初期化
      */
@@ -55,7 +59,7 @@ class SimulationUserAssessment {
         
         //2013-10-10
         //評価が正しく行われているかをチャックするための出力
-        $this->outputUserHistory($user_history, $question_assessment);
+        //$this->outputUserHistory($user_history, $question_assessment);
         
         //保存されている履歴の回数分計算を繰り返す
         for ($i = 0; $i < count($user_history); $i++) {
@@ -81,7 +85,8 @@ class SimulationUserAssessment {
         
         //ここからユーザの実力計算を行う
         $delta = $this->orignal_user_assessment->orignalUserDeltaFlag($difficult, $ability_score, $result);
-        $this->outputHistorySum($ability_score, $difficult, $delta);
+        //出力用
+        //$this->outputHistorySum($ability_score, $difficult, $delta);
         if($delta > 0) {
             $orignal_new_ability_score += ($difficult - $ability_score) * $delta;
             $orignal_delta_count++;
@@ -94,24 +99,24 @@ class SimulationUserAssessment {
      * 履歴の計算が全て終わったら、最終的な実力を求める
      */
     private function getOrignalNewAbilityScore($user_id, $orignal_delta_count, $orignal_new_ability_score) {
-        printf("　＝　$orignal_new_ability_score<br>");
+        //printf("　＝　$orignal_new_ability_score<br>");
         if($orignal_delta_count > 0) {
-            printf("δが０より大きくなった回数が１回以上あったので<br>");
-            printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
+            //printf("δが０より大きくなった回数が１回以上あったので<br>");
+            //printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
             $orignal_new_ability_score = $orignal_new_ability_score / $orignal_delta_count;
             //小数点第二位で四捨五入する
             $orignal_new_ability_score = $orignal_new_ability_score * 10;
             $orignal_new_ability_score = round($orignal_new_ability_score);
             $orignal_new_ability_score = $orignal_new_ability_score / 10;
-            printf("　＝　$orignal_new_ability_score<br>");
+            //printf("　＝　$orignal_new_ability_score<br>");
         }
-        printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
+        //printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
         $orignal_new_ability_score += $this->orignal_ability_scores[$user_id];
         //小数点第二位で四捨五入する
         $orignal_new_ability_score = $orignal_new_ability_score * 10;
         $orignal_new_ability_score = round($orignal_new_ability_score);
         $orignal_new_ability_score = $orignal_new_ability_score / 10;
-        printf("　＝　" . $orignal_new_ability_score . "<br><br>");
+        //printf("　＝　" . $orignal_new_ability_score . "<br><br>");
         array_push($this->orignal_ability_scores_transition["$user_id"], $orignal_new_ability_score);
         $this->orignal_ability_scores[$user_id] = $orignal_new_ability_score;
     }
@@ -136,8 +141,18 @@ class SimulationUserAssessment {
         }
     }
 
-    public function outputTransition() {
-        print_r($this->orignal_ability_scores_transition);
+    /**
+     * 2013-10-17
+     * 石川
+     * 各ユーザの正解した回数をカウントするための関数
+     */
+    public function chkAnswerAccepted($user_id, $result) {
+        if($result == ACCEPTED) {
+            if (!array_key_exists("$user_id", $this->accepted_counter)) {
+                $this->accepted_counter["$user_id"] = 0;
+            } 
+            $this->accepted_counter["$user_id"] += 1;
+        }
     }
     
     /**
@@ -154,6 +169,32 @@ class SimulationUserAssessment {
     
     public function getTeradaUserAbilityScore($user_id) {
         return $this->terada_ability_scores[$user_id];
+    }
+    
+    /**
+     * 2013-10-17
+     * 石川
+     * ユーザが問題に正解した割合を基に正規化する関数
+     * 
+     */
+    public function normalization() {
+        //正規化するための実力
+        $ability_score = 10;
+        $previous_accepted_counter = -1;
+        $equal_accepted_counter_num = 0;
+        //keyと値の関係を維持していくれる
+        arsort($this->accepted_counter);
+        foreach($this->accepted_counter as $key => $value) {
+            if($value == $previous_accepted_counter) {
+                $this->orignal_ability_scores[$key] = $ability_score;
+                $equal_accepted_counter_num += 1;
+            }else{
+                $previous_accepted_counter = $value;
+                $ability_score -= 1 + $equal_accepted_counter_num;
+                $this->orignal_ability_scores[$key] = $ability_score;
+                $equal_accepted_counter_num = 0;
+            }
+        }
     }
 
     //これ以降は計算が正しく行われているかをチャックするための関数
