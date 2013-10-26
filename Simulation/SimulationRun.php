@@ -85,8 +85,14 @@ class SimulationRun{
      */
     private function initialize() {
         for($i = 0; $i < DATA_NUM; $i++){
-            $true_ability_score = $i;
-            $true_difficult     = $i;
+            $true_ability_score = $this->getRandomRealNumber();
+            $true_difficult     = $this->getRandomRealNumber();
+            if($i == 0) {
+                $true_difficult = 0;
+            }
+            if($i == 1) {
+                $true_difficult = 10;
+            }
             $this->true_ability_scores[$i] = $true_ability_score;
             $this->true_difficult[$i] = $true_difficult;
             $this->question_testdata_num[$i]   = mt_rand(1, 40);
@@ -144,7 +150,7 @@ class SimulationRun{
     
     //データセットの生成
     private function makeDataSet() {
-        for($i = 0; $i < 1000; $i++) {
+        for($i = 0; $i < 100; $i++) {
             for($j = 0; $j < DATA_NUM; $j++) {
                 $data = array($j, mt_rand(0, 9));
                 array_push($this->data_set, $data);
@@ -155,7 +161,7 @@ class SimulationRun{
     
     
     /**
-     * 2013-10-05
+     * 2013-10-22
      * ユーザの履歴を更新する関数
      */
     private function updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num) {
@@ -164,7 +170,7 @@ class SimulationRun{
         $this->users_history[$user_id][$user_update_num] = 
                 array($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
         //履歴の中で次に更新すべき場所を決める
-        $this->user_assessment->chkAnswerAccepted($user_id, $result);
+        //$this->user_assessment->chkAnswerAccepted($user_id, $result);
         if($this->users_oldest_history_number[$user_id] < 29) {
             $this->users_oldest_history_number[$user_id] += 1;
         }else{
@@ -173,10 +179,8 @@ class SimulationRun{
     }
     
     /**
-     * 2013-10-11
-     * 難易度の計算ロジックが実力と異なるため別々に分けた
-     * 2013-10-15
-     * ここにはその当時の実力を追加しないとだめかも・・・
+     * 2013-10-22
+     * 問題毎に履歴を書き込むための関数
      */
     private function updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num) {
         //問題に挑戦した当時の実力を取得するための関数
@@ -186,6 +190,8 @@ class SimulationRun{
         $this->questions_history[$question_id][$question_update_num] = 
                 array($user_id, $question_id, $result, $correct_testdata_num, $testdata_num, $ability_score);
         $this->questions_oldest_history_number[$question_id] += 1;
+        //履歴の記録
+        //$this->question_assessment->chkAnswerAccepted($question_id, $result);
     }
     
     /**
@@ -214,7 +220,7 @@ class SimulationRun{
             $this->updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             $this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             //ユーザの実力計算
-            //printf("-------------------" . $round . "回目の計算-------------------<br>");
+            printf("-------------------" . $round . "回目の計算-------------------<br>");
             $this->user_assessment->Assessment($this->users_history[$user_id], $this->question_assessment);
             /**
              * 2013-10-11
@@ -223,33 +229,43 @@ class SimulationRun{
              * 計算が終わったら、計算に使った履歴を削除する
              * 無事動いている様子なので、検証する
              */ 
-            if($round % 500 == 0) {
-                //正規化
-                $this->user_assessment->normalization();
+            if($round % ROUND == 0) {
                 //直接問題の数を入れる
                 for($j = 0; $j < count($this->questions_history); $j++) {
                     //一回以上誰かに問題を解かれているかどうか確認している
                     if($this->questions_oldest_history_number[$j] != 0) {
                         $this->question_assessment->Assessment(
                         $this->questions_history[$j], $this->user_assessment);
-                        $this->questions_history[$j] = array();
+                        //ここら辺が非常にまずい気がする
+                        //多分メモりを解放せずにゴミを溜め込んでると思われる
+                        $this->questions_history[$j] = array(); 
                         $this->questions_history[$j][0] = array();
                         $this->questions_oldest_history_number[$j] = 0;
                     }
                 }
+                //正規化
+                $this->question_assessment->normalization();
+                //ユーザの履歴がメモリーリークの原因だったので、上書き作業をする
+                if($round == ROUND) {
+                    //printf("通ってる");
+                    $this->user_assessment->writeAbilityScoreTransition();
+                }else{
+                    //printf("通った");
+                    $this->user_assessment->overwriteAbilityScoreTransition();
+                }
             }
-            //printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
+            //メモリ量の確認
+            //$this->dumpMemory();
+            //printf("<br>");
+            printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
             $round++;
         }
-        //履歴の更新がちゃんとできているか確認用プログラム
-        //$this->chkUserHistory();
-        //$this->chkQuestionHistory();
-        //$this->chkUpdateQuestionHistoryNum();
-        //$this->outputTrueAbilityScoreAndDifficult();
-        $this->user_assessment->writeAbilityScoreTransition();
+        //$this->question_assessment->outputAcceptedCounter();
+        //$this->question_assessment->normalization();
+        $this->user_assessment->overwriteAbilityScoreTransition();
         $this->question_assessment->writeDifficultTransition();
-        //$this->writeTrueAbilityScore();
-        //$this->writeTrueDifficult();
+        $this->writeTrueAbilityScore();
+        $this->writeTrueDifficult();
         printf("無事終わりました");
         
     }
@@ -399,6 +415,24 @@ class SimulationRun{
         }
         printf("</table>");
     }
+
+    private function chkBiteSize() {
+        printf("user_history byte size = " . var_dump(count($this->users_history)) . "<br>");
+        for($i = 0; $i < count($this->users_history); $i++) {
+            printf("user_history[" . $i . "] byte size = " . var_dump(count($this->users_history[$i])) . "<br>");
+        }
+        //$questions_history = array(array());
+        //$users_oldest_history_number = array();
+        //$questions_oldest_history_number = array();
+    }
+    
+    private function dumpMemory()  {  
+        static $initialMemoryUse = null;  
+        if ( $initialMemoryUse === null )  {  
+            $initialMemoryUse = memory_get_usage();  
+        }  
+        var_dump(number_format(memory_get_usage() - $initialMemoryUse));  
+    }  
 //--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
 } 
 

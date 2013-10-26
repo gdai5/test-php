@@ -9,12 +9,12 @@ require_once("./UserAssessment/SimulationOrignalUserAssessment.php");
 class SimulationUserAssessment {
     
     private $orignal_ability_scores_transition = array(array());
-    //private $ishikawa_ability_scores_transition = array();
+    private $ishikawa_ability_scores_transition = array();
     //private $terada_ability_scores_transition = array();
     
     //今現在の実力を保管する
     private $orignal_ability_scores = array(array());
-    //private $ishikawa_ability_scores = array();
+    private $ishikawa_ability_scores = array();
     //private $terada_ability_scores = array();
     
     //オリジナルの計算式を利用するために呼び出す
@@ -59,7 +59,7 @@ class SimulationUserAssessment {
         
         //2013-10-10
         //評価が正しく行われているかをチャックするための出力
-        //$this->outputUserHistory($user_history, $question_assessment);
+        $this->outputUserHistory($user_history, $question_assessment);
         
         //保存されている履歴の回数分計算を繰り返す
         for ($i = 0; $i < count($user_history); $i++) {
@@ -86,7 +86,7 @@ class SimulationUserAssessment {
         //ここからユーザの実力計算を行う
         $delta = $this->orignal_user_assessment->orignalUserDeltaFlag($difficult, $ability_score, $result);
         //出力用
-        //$this->outputHistorySum($ability_score, $difficult, $delta);
+        $this->outputHistorySum($ability_score, $difficult, $delta);
         if($delta > 0) {
             $orignal_new_ability_score += ($difficult - $ability_score) * $delta;
             $orignal_delta_count++;
@@ -99,24 +99,25 @@ class SimulationUserAssessment {
      * 履歴の計算が全て終わったら、最終的な実力を求める
      */
     private function getOrignalNewAbilityScore($user_id, $orignal_delta_count, $orignal_new_ability_score) {
-        //printf("　＝　$orignal_new_ability_score<br>");
+        printf("　＝　$orignal_new_ability_score<br>");
         if($orignal_delta_count > 0) {
-            //printf("δが０より大きくなった回数が１回以上あったので<br>");
-            //printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
+            printf("δが０より大きくなった回数が１回以上あったので<br>");
+            printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
             $orignal_new_ability_score = $orignal_new_ability_score / $orignal_delta_count;
             //小数点第二位で四捨五入する
             $orignal_new_ability_score = $orignal_new_ability_score * 10;
             $orignal_new_ability_score = round($orignal_new_ability_score);
             $orignal_new_ability_score = $orignal_new_ability_score / 10;
-            //printf("　＝　$orignal_new_ability_score<br>");
+            printf("　＝　$orignal_new_ability_score<br>");
         }
-        //printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
+        printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
         $orignal_new_ability_score += $this->orignal_ability_scores[$user_id];
         //小数点第二位で四捨五入する
         $orignal_new_ability_score = $orignal_new_ability_score * 10;
         $orignal_new_ability_score = round($orignal_new_ability_score);
         $orignal_new_ability_score = $orignal_new_ability_score / 10;
-        //printf("　＝　" . $orignal_new_ability_score . "<br><br>");
+        printf("　＝　" . $orignal_new_ability_score . "<br><br>");
+        //メモリを圧迫しているのは推移だった
         array_push($this->orignal_ability_scores_transition["$user_id"], $orignal_new_ability_score);
         $this->orignal_ability_scores[$user_id] = $orignal_new_ability_score;
     }
@@ -138,6 +139,34 @@ class SimulationUserAssessment {
                 fwrite($fp, $this->orignal_ability_scores_transition[$i][$j] . "\n");
             }
             fclose($fp);
+            unset($this->orignal_ability_scores_transition[$i]);
+            $this->orignal_ability_scores_transition[$i] = array();
+        }
+    }
+    
+    /**
+     * 2013-10-26
+     * 計算式が３つあるため、これを呼び出せば３つ全ての書き込みを行わせる事ができるため設置
+     */
+    public function overwriteAbilityScoreTransition() {
+        $this->overwriteOrignalTransition();
+        
+    }
+    
+    /**
+     * 2013-10-26
+     * メモリーリーク対策用にある一定間隔でファイルに書き込みをする
+     */
+    private function overwriteOrignalTransition() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $file_name = "./UserTransition/Orignal/User" . $i . ".txt";
+            $fp = fopen($file_name, "a");
+            for($j = 0; $j < count($this->orignal_ability_scores_transition[$i]); $j++) {
+                fwrite($fp, $this->orignal_ability_scores_transition[$i][$j] . "\n");
+            }
+            fclose($fp);
+            unset($this->orignal_ability_scores_transition[$i]);
+            $this->orignal_ability_scores_transition[$i] = array();
         }
     }
 

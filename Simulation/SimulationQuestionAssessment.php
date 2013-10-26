@@ -10,6 +10,10 @@ class SimulationQuestionAssessment {
     
     private $orignal_question_assessment;
     
+    //2013-10-23
+    //正規化を用いる為にそのユーザが何回正解したかをカウントしておくもの
+    private $accepted_counter = array();
+    
     /**
      * 難易度の推移と今現在の難易度を保管する配列たちを初期化
      */
@@ -52,9 +56,9 @@ class SimulationQuestionAssessment {
         $result        = $history_data[RESULT];
         $difficult     = $this->orignal_difficult[$question_id];
         //現状の実力を持ってくる場合
-        $ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
+        //$ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
         //当時の実力を持ってくる場合
-        //$ability_score = $history_data[ABILITY_SCORE];
+        $ability_score = $history_data[ABILITY_SCORE];
         
         //ここから問題の難易度計算を行う
         $xi = $this->orignal_question_assessment->orignalQuestionXiFlag($difficult, $ability_score ,$result);
@@ -83,14 +87,14 @@ class SimulationQuestionAssessment {
             $orignal_new_difficult = $orignal_new_difficult / 10;
             //printf("　＝　$orignal_new_difficult<br>");
         }
-        //printf("最後に最終的な難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
+        //printf("計算結果の難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
         $orignal_new_difficult += $this->orignal_difficult[$question_id];
         //小数点第二位で四捨五入する
         $orignal_new_difficult = $orignal_new_difficult * 10;
         $orignal_new_difficult = round($orignal_new_difficult);
         $orignal_new_difficult = $orignal_new_difficult / 10;
         //printf("　＝　" . $orignal_new_difficult . "<br><br>");
-        array_push($this->orignal_difficult_transition["$question_id"], $orignal_new_difficult);
+        //array_push($this->orignal_difficult_transition["$question_id"], $orignal_new_difficult);
         $this->orignal_difficult[$question_id] = $orignal_new_difficult;
     }
 
@@ -124,6 +128,100 @@ class SimulationQuestionAssessment {
         return $this->orignal_difficult[$question_id];
     }
     
+    /**
+     * 2013-10-23
+     * 問題の難易度を計算する前に正規化
+     * 正解数/挑戦者数の値が低い人から
+     * 
+     * 今のままだとあまり効果がない。
+     */
+    public function normalization_old() {
+        $max_correct_answer_ratio = 0;
+        $min_correct_answer_ratio = 100;
+        //まず正解率の最大と最小を求める
+        foreach ($this->accepted_counter as $key => $value) {
+            if($value[CORRECT_ANSWER_RATIO] > $max_correct_answer_ratio) {
+                $max_correct_answer_ratio = $value[CORRECT_ANSWER_RATIO];
+            }
+            if($value[CORRECT_ANSWER_RATIO] < $min_correct_answer_ratio) {
+                $min_correct_answer_ratio = $value[CORRECT_ANSWER_RATIO];
+            }
+        }
+        foreach ($this->accepted_counter as $key => $value) {
+            //printf("$key" . "<br>");
+            //printf("難易度の正規化をします<br>");
+            //printf("問題" . $key . "の正規化<br>");
+            $difficult = 10 - (10 / ($max_correct_answer_ratio - $min_correct_answer_ratio)) * ($value[CORRECT_ANSWER_RATIO] - $min_correct_answer_ratio);
+            $difficult = $difficult * 10;
+            $difficult = round($difficult);
+            $difficult = $difficult / 10;
+            //printf("正解率から導いた難易度＝" . $difficult . "<br>");
+            //printf("正規化した後の難易度＝(" . $difficult . " + " . $this->orignal_difficult[$key] . ") / 2 = ");
+            $difficult = ($difficult + $this->orignal_difficult[$key]) / 2;
+            $difficult = $difficult * 10;
+            $difficult = round($difficult);
+            $difficult = $difficult / 10;
+            //printf($difficult . "<br>");
+            //printf("<br>");
+            $this->orignal_difficult[$key] = $difficult;
+            array_push($this->orignal_difficult_transition["$key"], $difficult);
+        }
+    }
+
+    /**
+     * 2013-10-23
+     * 計算されて求まった難易度から正規化を行う
+     */
+    public function normalization() {
+        $max_difficult = 0;
+        $min_difficult = 10;
+        for($i = 0; $i < count($this->orignal_difficult); $i++) {
+            //最大値の更新
+            if($this->orignal_difficult[$i] > $max_difficult) {
+                $max_difficult = $this->orignal_difficult[$i];
+            }
+            //最小値の更新
+            if($this->orignal_difficult[$i] < $min_difficult) {
+                $min_difficult = $this->orignal_difficult[$i];
+            }
+        }
+        ////printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
+        for($i = 0; $i < count($this->orignal_difficult); $i++) {
+            //printf("難易度の正規化をします<br>");
+            //printf("問題" . $i . "の正規前　＝　" . $this->orignal_difficult[$i] . "<br>");
+            //printf("問題" . $i . "の正規化<br>");
+            $difficult = (10 / ($max_difficult - $min_difficult)) * ($this->orignal_difficult[$i] - $min_difficult);
+            $difficult = $difficult * 10;
+            $difficult = round($difficult);
+            $difficult = $difficult / 10;
+            //printf("正規化後の難易度＝" . $difficult . "<br>");
+            //printf("<br>");
+            $this->orignal_difficult[$i] = $difficult;
+            array_push($this->orignal_difficult_transition["$i"], $difficult);
+        }
+    }
+    
+    /**
+     * 2013-10-23
+     * 各問題の正解した回数と挑戦者数をカウントするための関数
+     */
+    public function chkAnswerAccepted($question_id, $result) {
+        //まだ登録されている人ではなかったら、新規に登録
+        if (!array_key_exists("$question_id", $this->accepted_counter)) {
+            $this->accepted_counter["$question_id"] = array(0, 0, 0);
+        } 
+        if($result == ACCEPTED) {
+            $this->accepted_counter["$question_id"][ACCEPTED_COUNT] += 1;
+        }
+        $this->accepted_counter["$question_id"][CHALLENGER_COUNT] += 1;
+        $correct_answer_ratio = round($this->accepted_counter["$question_id"][ACCEPTED_COUNT] / $this->accepted_counter["$question_id"][CHALLENGER_COUNT] * 100);
+        $this->accepted_counter["$question_id"][CORRECT_ANSWER_RATIO] = $correct_answer_ratio;
+    }
+    
+    public function outputAcceptedCounter() {
+        print_r($this->accepted_counter);
+    }
+    
     //これ以降は計算が正しく行われているかをチャックするための関数
     private function outputQuestionHistory($question_history, $user_assessment) {
         printf("問題" . $question_history[0][QUESTION_ID] . "の履歴<br>");
@@ -131,8 +229,8 @@ class SimulationQuestionAssessment {
         printf("<table>");
         printf("<tr>");
         printf("<td>挑戦したユーザID</td>");
-        printf("<td>実力</td>");
-        //printf("<td>挑戦した当時の実力</td>");
+        //printf("<td>実力</td>");
+        printf("<td>挑戦した当時の実力</td>");
         printf("<td>結果</td>");
         printf("<td>テストデータ数</td>");
         printf("<td>正解したテストデータ数</td>");
@@ -141,9 +239,9 @@ class SimulationQuestionAssessment {
             printf("<tr>");
             printf("<td>" . $question_history[$i][USER_ID] . "</td>");
             //計算を始めるときの実力
-            printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
+            //printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
             //挑戦した当時の実力
-            //printf("<td>" . $question_history[$i][ABILITY_SCORE] . "</td>");
+            printf("<td>" . $question_history[$i][ABILITY_SCORE] . "</td>");
             printf("<td>" . $question_history[$i][RESULT] . "</td>");
             printf("<td>" . $question_history[$i][TESTDATA_NUM] . "</td>");
             printf("<td>" . $question_history[$i][CORRECT_TESTDATA_NUM] . "</td>");

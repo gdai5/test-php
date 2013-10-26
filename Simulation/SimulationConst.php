@@ -4,6 +4,7 @@
   
   //データ数
   define("DATA_NUM", 10);
+  define("ROUND", 100);
   
   define("COMPILE_ERROR", 0);
   define("RUNTIME_ERROR", 1);
@@ -17,4 +18,10 @@
   define("CORRECT_TESTDATA_NUM", 3);
   define("TESTDATA_NUM", 4);
   define("ABILITY_SCORE", 5);
+  
+  define("ACCEPTED_COUNT", 0);
+  define("CHALLENGER_COUNT", 1);
+  define("CORRECT_ANSWER_RATIO", 2);
+  
+  
 ?>
