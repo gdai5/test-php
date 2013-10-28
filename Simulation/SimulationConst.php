@@ -4,7 +4,7 @@
   
   //データ数
   define("DATA_NUM", 10);
-  define("ROUND", 100);
+  define("ROUND", 10);
   
   define("COMPILE_ERROR", 0);
   define("RUNTIME_ERROR", 1);
