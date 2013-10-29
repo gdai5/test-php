@@ -47,85 +47,104 @@ class SimulationQuestionAssessment {
         
         //2013-10-10
         //計算が正しく行われているかを確認するため
-        if(count($point_in_time_ishikawa_ability_scores) != 0) {
-            $this->outputQuestionHistory($question_history, 
-                                         $user_assessment, 
-                                         $point_in_time_ishikawa_ability_scores[$question_id]);
-        }
-        
+        //orignalの出力
+        // printf("--------------Orignal--------------------<br>");
+        // $this->outputQuestionHistory($question_history, 
+                                     // $user_assessment, 
+                                     // $point_in_time_orignal_ability_scores[$question_id], 
+                                     // $this->orignal_difficult[$question_id]);
         
         //保存されている履歴の回数分計算を繰り返す
         for ($i = 0; $i < count($question_history); $i++) {
             //orignalでの難易度計算
-            //list($orignal_xi_count, $orignal_new_difficult) = 
-                // $this->orignalQuestionAssessment(
-                // $question_history[$i], $orignal_xi_count, 
-                // $orignal_new_difficult, $user_assessment, 
-                // $point_in_time_orignal_ability_scores[$i]);
-            //ishikawaでの難易度計算
-            list($ishikawa_xi_count, $ishikawa_new_difficult) = 
-                $this->orignalQuestionAssessment(
-                $question_history[$i], $ishikawa_xi_count, 
-                $ishikawa_new_difficult, $user_assessment, 
-                $point_in_time_ishikawa_ability_scores[$question_id][$i]);
+            list($orignal_xi_count, $orignal_new_difficult) = $this->orignalQuestionAssessment(
+                    $question_history[$i], $orignal_xi_count, 
+                    $orignal_new_difficult, $this->orignal_difficult[$question_id], 
+                    $point_in_time_orignal_ability_scores[$question_id][$i]);
         }
-        //orignalでの難易度計算
-        //$this->getOrignalNewDifficult($question_history[0][QUESTION_ID], $orignal_xi_count, $orignal_new_difficult);
-        //ishikawaでの難易度計算
-        $this->getOrignalNewDifficult($question_id, $ishikawa_xi_count, $ishikawa_new_difficult);
+        //orignalでの最終計算
+        $this->orignal_difficult[$question_id] = $this->getOrignalNewDifficult($question_id, 
+                                                                               $orignal_xi_count, 
+                                                                               $orignal_new_difficult, 
+                                                                               $this->orignal_difficult[$question_id]);
+        
+        //printf("--------------Orignal END--------------------<br>");
+        
+        //printf("--------------Ishikawa--------------------<br>");
+        //ishikawaの出力用
+        // $this->outputQuestionHistory($question_history, 
+                                     // $user_assessment, 
+                                     // $point_in_time_ishikawa_ability_scores[$question_id], 
+                                     // $this->ishikawa_difficult[$question_id]);
+        //ishikawaでの難易度計算                             
+        for ($i = 0; $i < count($question_history); $i++) {
+            list($ishikawa_xi_count, $ishikawa_new_difficult) = $this->orignalQuestionAssessment(
+                    $question_history[$i], $ishikawa_xi_count, 
+                    $ishikawa_new_difficult, $this->ishikawa_difficult[$question_id], 
+                    $point_in_time_ishikawa_ability_scores[$question_id][$i]);
+        }
+        //ishikawaでの最終計算
+        $this->ishikawa_difficult[$question_id] = $this->getOrignalNewDifficult($question_id, 
+                                                                                $ishikawa_xi_count, 
+                                                                                $ishikawa_new_difficult, 
+                                                                                $this->ishikawa_difficult[$question_id]);
+        
+        //printf("--------------Ishikawa END--------------------<br>");
     }
+
     
     /**
      * 2013-10-08
      * 問題の難易度を計算するプログラム
      */
-    private function orignalQuestionAssessment($history_data, $orignal_xi_count, $orignal_new_difficult, $user_assessment, $ability_score) {
+    private function orignalQuestionAssessment($history_data, $xi_count, $new_difficult, $difficult, $ability_score) {
         //計算を行う前に必要なものを変数に入れておく
         $user_id       = $history_data[USER_ID];
         $question_id   = $history_data[QUESTION_ID];
         $result        = $history_data[RESULT];
-        $difficult     = $this->orignal_difficult[$question_id];
-        //現状の実力を持ってくる場合
-        //$ability_score = $user_assessment->getOrignalUserAbilityScore($user_id);
-        //当時の実力を持ってくる場合
-        //$ability_score = $ability_scores[ABILITY_SCORE];
         
         //ここから問題の難易度計算を行う
         $xi = $this->orignal_question_assessment->orignalQuestionXiFlag($difficult, $ability_score ,$result);
         //出力用
-        $this->outputHistorySum($ability_score, $difficult, $xi);
+        //$this->outputHistorySum($ability_score, $difficult, $xi);
         if($xi > 0) {
-                $orignal_new_difficult += ($ability_score - $difficult) * $xi;
-                $orignal_xi_count++;
+                $new_difficult += ($ability_score - $difficult) * $xi;
+                $xi_count++;
         } 
-        return array($orignal_xi_count, $orignal_new_difficult);
+        return array($xi_count, $new_difficult);
     }
     
     /**
      * 2013-10-08
      * 履歴の計算が全て終わったら、最終的な難易度を計算する
      */
-    private function getOrignalNewDifficult($question_id, $orignal_xi_count, $orignal_new_difficult) {
-        printf("　＝　$orignal_new_difficult<br>");
-        if($orignal_xi_count > 0) {
-            printf("ξが０より大きくなった回数が１回以上あったので<br>");
-            printf("追加する難易度　＝　" . $orignal_new_difficult . " / " . $orignal_xi_count);
-            $orignal_new_difficult = $orignal_new_difficult / $orignal_xi_count;
+    private function getOrignalNewDifficult($question_id, $xi_count, $new_difficult, $now_difficult) {
+        //printf("　＝　$new_difficult<br>");
+        if($xi_count > 0) {
+            //printf("ξが０より大きくなった回数が１回以上あったので<br>");
+            //printf("追加する難易度　＝　" . $new_difficult . " / " . $xi_count);
+            $new_difficult = $new_difficult / $xi_count;
             //小数点第二位で四捨五入する
-            $orignal_new_difficult = $orignal_new_difficult * 10;
-            $orignal_new_difficult = round($orignal_new_difficult);
-            $orignal_new_difficult = $orignal_new_difficult / 10;
-            printf("　＝　$orignal_new_difficult<br>");
+            $new_difficult = $this->Rounding($new_difficult);
+            //printf("　＝　$new_difficult<br>");
         }
-        printf("計算結果の難易度　＝　" . $this->orignal_difficult[$question_id] . " + " . $orignal_new_difficult);
-        $orignal_new_difficult += $this->orignal_difficult[$question_id];
+        //printf("計算結果の難易度　＝　" . $now_difficult . " + " . $new_difficult);
+        $new_difficult += $now_difficult;
         //小数点第二位で四捨五入する
-        $orignal_new_difficult = $orignal_new_difficult * 10;
-        $orignal_new_difficult = round($orignal_new_difficult);
-        $orignal_new_difficult = $orignal_new_difficult / 10;
-        printf("　＝　" . $orignal_new_difficult . "<br><br>");
-        //array_push($this->orignal_difficult_transition["$question_id"], $orignal_new_difficult);
-        $this->orignal_difficult[$question_id] = $orignal_new_difficult;
+        $new_difficult = $this->Rounding($new_difficult);
+        //printf("　＝　" . $new_difficult . "<br><br>");
+        return $new_difficult;
+    }
+
+    /**
+     * 2013-10-29
+     * 四捨五入
+     */
+    private function Rounding($difficult) {
+        $difficult = $difficult * 10;
+        $difficult = round($difficult);
+        $difficult = $difficult / 10;
+        return $difficult;
     }
 
     /**
@@ -134,7 +153,7 @@ class SimulationQuestionAssessment {
      * 全てのability_scores_transitionをファイルに記録する
      */
     public function writeDifficultTransition() {
-        //$this->writeOrignalTransition();
+        $this->writeOrignalTransition();
         $this->writeIshikawaTransition();
     }
     
@@ -159,11 +178,6 @@ class SimulationQuestionAssessment {
             fclose($fp);
         }
     }
-
-    //最後に出力結果の確認
-    public function outputTransition() {
-        print_r($this->orignal_difficult_transition);
-    }
     
     //SimlationUserAssessment.phpでoriginalの計算式で使う難易度を取得するための関数
     public function getOrignalQuestionDifficult($question_id) {
@@ -180,14 +194,14 @@ class SimulationQuestionAssessment {
      * 計算されて求まった難易度から正規化を行う
      */
     public function normalization() {
-       //$this->orignalNomalization();
+       $this->orignalNomalization();
        $this->ishikawaNomalization();
     }
 
     //Orignal, Ishikawa, Terada用の３つの正規化を書かなければいけない
     
     private function orignalNomalization() {
-         $max_difficult = 0;
+        $max_difficult = 0;
         $min_difficult = 10;
         for($i = 0; $i < count($this->orignal_difficult); $i++) {
             //最大値の更新
@@ -199,17 +213,15 @@ class SimulationQuestionAssessment {
                 $min_difficult = $this->orignal_difficult[$i];
             }
         }
-        printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
+        //printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
         for($i = 0; $i < count($this->orignal_difficult); $i++) {
-            printf("難易度の正規化をします<br>");
-            printf("問題" . $i . "の正規前　＝　" . $this->orignal_difficult[$i] . "<br>");
-            printf("問題" . $i . "の正規化<br>");
+            //printf("難易度の正規化をします<br>");
+            //printf("問題" . $i . "の正規前　＝　" . $this->orignal_difficult[$i] . "<br>");
+            //printf("問題" . $i . "の正規化<br>");
             $difficult = (10 / ($max_difficult - $min_difficult)) * ($this->orignal_difficult[$i] - $min_difficult);
-            $difficult = $difficult * 10;
-            $difficult = round($difficult);
-            $difficult = $difficult / 10;
-            printf("正規化後の難易度＝" . $difficult . "<br>");
-            printf("<br>");
+            $difficult = $this->Rounding($difficult);
+            //printf("正規化後の難易度＝" . $difficult . "<br>");
+            //printf("<br>");
             $this->orignal_difficult[$i] = $difficult;
             array_push($this->orignal_difficult_transition["$i"], $difficult);
         }
@@ -228,17 +240,15 @@ class SimulationQuestionAssessment {
                 $min_difficult = $this->ishikawa_difficult[$i];
             }
         }
-        printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
+        //printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
         for($i = 0; $i < count($this->ishikawa_difficult); $i++) {
-            printf("難易度の正規化をします<br>");
-            printf("問題" . $i . "の正規前　＝　" . $this->ishikawa_difficult[$i] . "<br>");
-            printf("問題" . $i . "の正規化<br>");
+            //printf("難易度の正規化をします<br>");
+            //printf("問題" . $i . "の正規前　＝　" . $this->ishikawa_difficult[$i] . "<br>");
+            //printf("問題" . $i . "の正規化<br>");
             $difficult = (10 / ($max_difficult - $min_difficult)) * ($this->ishikawa_difficult[$i] - $min_difficult);
-            $difficult = $difficult * 10;
-            $difficult = round($difficult);
-            $difficult = $difficult / 10;
-            printf("正規化後の難易度＝" . $difficult . "<br>");
-            printf("<br>");
+            $difficult = $this->Rounding($difficult);
+            //printf("正規化後の難易度＝" . $difficult . "<br>");
+            //printf("<br>");
             $this->ishikawa_difficult[$i] = $difficult;
             array_push($this->ishikawa_difficult_transition["$i"], $difficult);
         }
@@ -248,13 +258,12 @@ class SimulationQuestionAssessment {
     }
     
     //これ以降は計算が正しく行われているかをチャックするための関数
-    private function outputQuestionHistory($question_history, $user_assessment, $ability_scores) {
+    private function outputQuestionHistory($question_history, $user_assessment, $ability_scores, $difficult) {
         printf("問題" . $question_history[0][QUESTION_ID] . "の履歴<br>");
-        printf("計算前の問題の難易度　＝　" . $this->orignal_difficult[$question_history[0][QUESTION_ID]] . "<br>");
+        printf("計算前の問題の難易度　＝　" . $difficult . "<br>");
         printf("<table>");
         printf("<tr>");
         printf("<td>挑戦したユーザID</td>");
-        //printf("<td>実力</td>");
         printf("<td>挑戦した当時の実力</td>");
         printf("<td>結果</td>");
         printf("<td>テストデータ数</td>");
@@ -263,8 +272,6 @@ class SimulationQuestionAssessment {
         for($i = 0; $i < count($question_history); $i++) {
             printf("<tr>");
             printf("<td>" . $question_history[$i][USER_ID] . "</td>");
-            //計算を始めるときの実力
-            //printf("<td>" . $user_assessment->getOrignalUserAbilityScore($question_history[$i][USER_ID]) . "</td>");
             //挑戦した当時の実力
             printf("<td>" . $ability_scores[$i] . "</td>");
             printf("<td>" . $question_history[$i][RESULT] . "</td>");

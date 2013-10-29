@@ -147,9 +147,10 @@ class SimulationRun{
     
     //データセットの生成
     private function makeDataSet() {
-        for($i = 0; $i < 3; $i++) {
+        $question_number = DATA_NUM - 1;
+        for($i = 0; $i < 1000; $i++) {
             for($j = 0; $j < DATA_NUM; $j++) {
-                $data = array($j, mt_rand(0, 9));
+                $data = array($j, mt_rand(0, $question_number));
                 array_push($this->data_set, $data);
             }
         }
@@ -221,7 +222,7 @@ class SimulationRun{
             $this->updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             $this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             //ユーザの実力計算
-            printf("-------------------" . $round . "回目の計算-------------------<br>");
+            //printf("-------------------" . $round . "回目の計算-------------------<br>");
             $this->user_assessment->Assessment($this->users_history[$user_id], $this->question_assessment);
             /**
              * 2013-10-11
@@ -236,9 +237,9 @@ class SimulationRun{
                     //一回以上誰かに問題を解かれているかどうか確認している
                     if($this->questions_oldest_history_number[$j] != 0) {
                         $this->question_assessment->Assessment(
-                        $this->questions_history[$j], $this->user_assessment, 
-                        $this->point_in_time_orignal_ability_scores, 
-                        $this->point_in_time_ishikawa_ability_scores);
+                                $this->questions_history[$j], $this->user_assessment, 
+                                $this->point_in_time_orignal_ability_scores, 
+                                $this->point_in_time_ishikawa_ability_scores);
                         //履歴の削除
                         $this->questions_history[$j] = array(); 
                         $this->questions_history[$j][0] = array();
@@ -261,9 +262,9 @@ class SimulationRun{
                 }
             }
             //メモリ量の確認
-            $this->dumpMemory();
-            printf("<br>");
-            printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
+            //$this->dumpMemory();
+            //printf("<br>");
+            //printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
             $round++;
         }
         //最後に推移などを記録
@@ -436,7 +437,7 @@ class SimulationRun{
  * シミュレーション実験向けに全ての処理をメインメモリ上で行うように変更する
  * 旧バージョン=>「OldSimulationRun.php」
  */
-
+set_time_limit(120);
 $simulation_run = new SimulationRun();
 $simulation_run->Run();
 //NomalUserModelの検証完了 2013-10-07

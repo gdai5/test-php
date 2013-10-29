@@ -61,25 +61,27 @@ class SimulationUserAssessment {
         $ishikawa_new_ability_score = 0;
         //$terada_new_ability_score = 0;
         
+        $user_id = $user_history[0][USER_ID];
+        
         //2013-10-10
         //評価が正しく行われているかをチャックするための出力
         //$this->outputOrignalUserHistory($user_history, $question_assessment);
-        $this->outputIshikawaUserHistory($user_history, $question_assessment);
+        //$this->outputIshikawaUserHistory($user_history, $question_assessment);
         
         //保存されている履歴の回数分計算を繰り返す
         for ($i = 0; $i < count($user_history); $i++) {
-            //list($orignal_delta_count, $orignal_new_ability_score) = 
-            //    $this->orignalUserAssessment($user_history[$i], $orignal_delta_count, $orignal_new_ability_score, $question_assessment);
-                
+            //Orignalでの履歴計算
+            list($orignal_delta_count, $orignal_new_ability_score) = 
+                $this->orignalUserAssessment($user_history[$i], $orignal_delta_count, $orignal_new_ability_score, $question_assessment);
+            //Ishikawaでの履歴計算
             list($ishikawa_delta_count, $ishikawa_new_ability_score) = 
                 $this->ishikawaUserAssessment($user_history[$i], $ishikawa_delta_count, $ishikawa_new_ability_score, $question_assessment);
-                
             //$terada_delta = teradaUserDeltaFlag($difficult, $ability_score, $status);
         }
         //ここで最終的な実力を計算して出力する
-        //$this->getOrignalNewAbilityScore($user_history[0][USER_ID], $orignal_delta_count, $orignal_new_ability_score);
+        $this->getOrignalNewAbilityScore($user_id, $orignal_delta_count, $orignal_new_ability_score);
         //続きはここから2013-10-26
-        $this->getIshikawaNewAbilityScore($user_history[0][USER_ID], $ishikawa_delta_count, $ishikawa_new_ability_score);
+        $this->getIshikawaNewAbilityScore($user_id, $ishikawa_delta_count, $ishikawa_new_ability_score);
     }
 
 //--------------------------------Orignal----------------------------------------------------------------  
@@ -95,7 +97,7 @@ class SimulationUserAssessment {
         //ここからユーザの実力計算を行う
         $delta = $this->orignal_user_assessment->orignalUserDeltaFlag($difficult, $ability_score, $result);
         //出力用
-        $this->outputHistorySum($ability_score, $difficult, $delta);
+        //$this->outputHistorySum($ability_score, $difficult, $delta);
         if($delta > 0) {
             $orignal_new_ability_score += ($difficult - $ability_score) * $delta;
             $orignal_delta_count++;
@@ -108,20 +110,20 @@ class SimulationUserAssessment {
      * 履歴の計算が全て終わったら、最終的な実力を求める
      */
     private function getOrignalNewAbilityScore($user_id, $orignal_delta_count, $orignal_new_ability_score) {
-        printf("　＝　$orignal_new_ability_score<br>");
+        //printf("　＝　$orignal_new_ability_score<br>");
         if($orignal_delta_count > 0) {
-            printf("δが０より大きくなった回数が１回以上あったので<br>");
-            printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
+            //printf("δが０より大きくなった回数が１回以上あったので<br>");
+            //printf("追加する実力　＝　" . $orignal_new_ability_score . " / " . $orignal_delta_count);
             $orignal_new_ability_score = $orignal_new_ability_score / $orignal_delta_count;
             //小数点第二位で四捨五入する
-            $orignal_new_ability_score = $this->Rounding($ishikawa_new_ability_score);
-            printf("　＝　$orignal_new_ability_score<br>");
+            $orignal_new_ability_score = $this->Rounding($orignal_new_ability_score);
+            //printf("　＝　$orignal_new_ability_score<br>");
         }
-        printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
+        //printf("最後に最終的な実力　＝　" . $this->orignal_ability_scores[$user_id] . " + " . $orignal_new_ability_score);
         $orignal_new_ability_score += $this->orignal_ability_scores[$user_id];
         //小数点第二位で四捨五入する
-        $orignal_new_ability_score = $this->Rounding($ishikawa_new_ability_score);
-        printf("　＝　" . $orignal_new_ability_score . "<br><br>");
+        $orignal_new_ability_score = $this->Rounding($orignal_new_ability_score);
+        //printf("　＝　" . $orignal_new_ability_score . "<br><br>");
         //メモリを圧迫しているのは推移だった
         array_push($this->orignal_ability_scores_transition["$user_id"], $orignal_new_ability_score);
         $this->orignal_ability_scores[$user_id] = $orignal_new_ability_score;
@@ -148,7 +150,7 @@ class SimulationUserAssessment {
                 $difficult, $ability_score, $result, $correct_testdata_num, $testdata_num);
         //printf("計算に適応される難易度　＝　" . $difficult . "<br>");
         //出力用
-        $this->outputHistorySum($ability_score, $difficult, $delta);
+        //$this->outputHistorySum($ability_score, $difficult, $delta);
         if($delta > 0) {
             $ishikawa_new_ability_score += ($difficult - $ability_score) * $delta;
             $ishikawa_delta_count++;
@@ -161,20 +163,20 @@ class SimulationUserAssessment {
      * Ishikawaにおける新しい実力を求める行程
      */
     private function getIshikawaNewAbilityScore($user_id, $ishikawa_delta_count, $ishikawa_new_ability_score) {
-        printf("　＝　$ishikawa_new_ability_score<br>");
+        //printf("　＝　$ishikawa_new_ability_score<br>");
         if($ishikawa_delta_count > 0) {
-            printf("δが０より大きくなった回数が１回以上あったので<br>");
-            printf("追加する実力　＝　" . $ishikawa_new_ability_score . " / " . $ishikawa_delta_count);
+            //printf("δが０より大きくなった回数が１回以上あったので<br>");
+            //printf("追加する実力　＝　" . $ishikawa_new_ability_score . " / " . $ishikawa_delta_count);
             $ishikawa_new_ability_score = $ishikawa_new_ability_score / $ishikawa_delta_count;
             //小数点第二位で四捨五入する
             $ishikawa_new_ability_score = $this->Rounding($ishikawa_new_ability_score);
-            printf("　＝　$ishikawa_new_ability_score<br>");
+            //printf("　＝　$ishikawa_new_ability_score<br>");
         }
-        printf("最後に最終的な実力　＝　" . $this->ishikawa_ability_scores[$user_id] . " + " . $ishikawa_new_ability_score);
+        //printf("最後に最終的な実力　＝　" . $this->ishikawa_ability_scores[$user_id] . " + " . $ishikawa_new_ability_score);
         $ishikawa_new_ability_score += $this->ishikawa_ability_scores[$user_id];
         //小数点第二位で四捨五入する
         $ishikawa_new_ability_score = $this->Rounding($ishikawa_new_ability_score);
-        printf("　＝　" . $ishikawa_new_ability_score . "<br><br>");
+        //printf("　＝　" . $ishikawa_new_ability_score . "<br><br>");
         //メモリを圧迫しているのは推移だった
         array_push($this->ishikawa_ability_scores_transition["$user_id"], $ishikawa_new_ability_score);
         $this->ishikawa_ability_scores[$user_id] = $ishikawa_new_ability_score;
@@ -196,7 +198,7 @@ class SimulationUserAssessment {
      * 全てのability_scores_transitionをファイルに記録する
      */
     public function writeAbilityScoreTransition() {
-        //$this->writeOrignalTransition();
+        $this->writeOrignalTransition();
         $this->writeIshikawaTransition();
     }
     
@@ -231,7 +233,7 @@ class SimulationUserAssessment {
      * 計算式が３つあるため、これを呼び出せば３つ全ての書き込みを行わせる事ができるため設置
      */
     public function overwriteAbilityScoreTransition() {
-        //$this->overwriteOrignalTransition();
+        $this->overwriteOrignalTransition();
         $this->overwriteIshikawaTransition();
     }
     
@@ -244,7 +246,7 @@ class SimulationUserAssessment {
             $file_name = "./UserTransition/Orignal/User" . $i . ".txt";
             $fp = fopen($file_name, "a");
             for($j = 0; $j < count($this->orignal_ability_scores_transition[$i]); $j++) {
-                fwrite($fp, $this->ishikawa_ability_scores_transition[$i][$j] . "\n");
+                fwrite($fp, $this->orignal_ability_scores_transition[$i][$j] . "\n");
             }
             fclose($fp);
             unset($this->orignal_ability_scores_transition[$i]);
