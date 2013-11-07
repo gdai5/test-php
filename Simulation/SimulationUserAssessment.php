@@ -1,28 +1,31 @@
 <?php
 /**
  * 最終更新日
- * 2013-10-26
- * Ishikawaの計算式の実装を始める
+ * 2013-11-04
+ * Teradaの計算式の実装を始める
  */
 
 require_once("./UserAssessment/SimulationOrignalUserAssessment.php");
 require_once("./UserAssessment/SimulationIshikawaUserAssessment.php");
+require_once("./UserAssessment/SimulationTeradaUserAssessment.php");
  
 class SimulationUserAssessment {
     
     private $orignal_ability_scores_transition = array(array());
     private $ishikawa_ability_scores_transition = array(array());
-    //private $terada_ability_scores_transition = array();
+    private $terada_ability_scores_transition = array();
     
     //今現在の実力を保管する
     private $orignal_ability_scores = array(array());
     private $ishikawa_ability_scores = array(array());
-    //private $terada_ability_scores = array();
+    private $terada_ability_scores = array();
     
     //オリジナルの計算式を利用するために呼び出す
     private $orignal_user_assessment;
-    //Ishikawaの計算式を利用するために呼び出す
+    //Ishikawaの計算式関数を呼び出すだけのもの
     private $ishikawa_user_assessment;
+	//Teradaの計算式関数を呼び出すだけのもの
+	private $terada_user_assessment;
     
     /**
      * 実力の推移と今現在の実力を保管する配列たちを初期化
@@ -30,18 +33,19 @@ class SimulationUserAssessment {
     function initialize() {
        for($i = 0; $i < DATA_NUM; $i++) {
            $ability_score = mt_rand(1, 10);
-           $this->orignal_ability_scores_transition["$i"] = array($ability_score);
+           $this->orignal_ability_scores_transition["$i"]  = array($ability_score);
            $this->ishikawa_ability_scores_transition["$i"] = array($ability_score);
-           //$this->terada_ability_scores_transition["$i"] = array($ability_score);
-           $this->orignal_ability_scores[$i] = $ability_score;
+           $this->terada_ability_scores_transition["$i"]   = array($ability_score);
+           $this->orignal_ability_scores[$i]  = $ability_score;
            $this->ishikawa_ability_scores[$i] = $ability_score;
-           //$this->terada_ability_scores[$i] = $ability_score;
+           $this->terada_ability_scores[$i]   = $ability_score;
        }
        
        //各種の計算式のクラスインスタンスを生成している
-       $this->orignal_user_assessment        = new SimulationOrignalUserAssessment();
-       $this->ishikawa_user_assessment       = new SimulationIshikawaUserAssessment();
-       
+       $this->orignal_user_assessment  = new SimulationOrignalUserAssessment();
+       $this->ishikawa_user_assessment = new SimulationIshikawaUserAssessment();
+	   $this->terada_user_assessment   = new SimulationTeradaUserAssessment();
+       //問題の難易度を引っ張ってくるだけのもの
        $this->simulation_question_assessment = new SimulationQuestionAssessment();
     }
   
@@ -54,12 +58,12 @@ class SimulationUserAssessment {
         //各計算でδが0以外になった回数をカウント
         $orignal_delta_count = 0;
         $ishikawa_delta_count = 0;
-        //$terada_delta_count = 0;
+        $terada_delta_count = 0;
       
         //各計算式で求まった新しい実力
         $orignal_new_ability_score = 0;
         $ishikawa_new_ability_score = 0;
-        //$terada_new_ability_score = 0;
+        $terada_new_ability_score = 0;
         
         $user_id = $user_history[0][USER_ID];
         
@@ -67,21 +71,27 @@ class SimulationUserAssessment {
         //評価が正しく行われているかをチャックするための出力
         //$this->outputOrignalUserHistory($user_history, $question_assessment);
         //$this->outputIshikawaUserHistory($user_history, $question_assessment);
-        
+        //$this->outputTeradaUserHistory($user_history, $question_assessment);
+		 
         //保存されている履歴の回数分計算を繰り返す
         for ($i = 0; $i < count($user_history); $i++) {
             //Orignalでの履歴計算
             list($orignal_delta_count, $orignal_new_ability_score) = 
                 $this->orignalUserAssessment($user_history[$i], $orignal_delta_count, $orignal_new_ability_score, $question_assessment);
+            
             //Ishikawaでの履歴計算
             list($ishikawa_delta_count, $ishikawa_new_ability_score) = 
                 $this->ishikawaUserAssessment($user_history[$i], $ishikawa_delta_count, $ishikawa_new_ability_score, $question_assessment);
-            //$terada_delta = teradaUserDeltaFlag($difficult, $ability_score, $status);
-        }
+            
+            //Teradaでの履歴計算
+            list($terada_delta_count, $terada_new_ability_score) =
+                $this->teradaUserAssessment($user_history[$i], $terada_delta_count, $terada_new_ability_score, $question_assessment);
+            
+		}
         //ここで最終的な実力を計算して出力する
         $this->getOrignalNewAbilityScore($user_id, $orignal_delta_count, $orignal_new_ability_score);
-        //続きはここから2013-10-26
         $this->getIshikawaNewAbilityScore($user_id, $ishikawa_delta_count, $ishikawa_new_ability_score);
+        $this->getTeradaNewAbilityScore($user_id, $terada_delta_count, $terada_new_ability_score);
     }
 
 //--------------------------------Orignal----------------------------------------------------------------  
@@ -93,9 +103,10 @@ class SimulationUserAssessment {
         $result        = $history_data[RESULT];
         $ability_score = $this->orignal_ability_scores[$user_id];
         $difficult     = $question_assessment->getOrignalQuestionDifficult($question_id);
+        $delta         = 0;
         
         //ここからユーザの実力計算を行う
-        $delta = $this->orignal_user_assessment->orignalUserDeltaFlag($difficult, $ability_score, $result);
+        //$delta = $this->orignal_user_assessment->orignalUserDeltaFlag($difficult, $ability_score, $result);
         //出力用
         //$this->outputHistorySum($ability_score, $difficult, $delta);
         if($delta > 0) {
@@ -144,6 +155,7 @@ class SimulationUserAssessment {
         $testdata_num         = $history_data[TESTDATA_NUM];
         $ability_score        = $this->ishikawa_ability_scores[$user_id];
         $difficult            = $question_assessment->getIshikawaQuestionDifficult($question_id);
+        $delta = 0;
         
         //ここからユーザの実力計算を行う
         list($delta, $difficult) = $this->ishikawa_user_assessment->ishikawaUserDeltaFlag(
@@ -182,7 +194,56 @@ class SimulationUserAssessment {
         $this->ishikawa_ability_scores[$user_id] = $ishikawa_new_ability_score;
     }
 
-//---------------------------------------------------------------------------------------------------------------
+//-------------------------------------Teradaの計算式----------------------------------------------------
+     /**
+	  * 2013-11-04
+	  * teradaでユーザの履歴を計算する関数
+	  */
+     private function teradaUserAssessment($history_data, $terada_delta_count, $terada_new_ability_score, $question_assessment) {
+        //計算を行う前に必要なものを変数に入れておく
+        $user_id              = $history_data[USER_ID];
+        $question_id          = $history_data[QUESTION_ID];
+        $result               = $history_data[RESULT];
+        $correct_testdata_num = $history_data[CORRECT_TESTDATA_NUM];
+        $testdata_num         = $history_data[TESTDATA_NUM];
+        $ability_score        = $this->terada_ability_scores[$user_id];
+        $difficult            = $question_assessment->getTeradaQuestionDifficult($question_id);
+        
+        //ここからユーザの実力計算を行う
+        $delta = $this->terada_user_assessment->teradaUserDeltaFlag(
+                $difficult, $ability_score, $result, $correct_testdata_num, $testdata_num);
+        //printf("計算に適応される難易度　＝　" . $difficult . "<br>");
+        //出力用
+        //$this->outputHistorySum($ability_score, $difficult, $delta);
+        if($delta > 0) {
+            $terada_new_ability_score += ($difficult - $ability_score) * $delta;
+            $terada_delta_count++;
+        } 
+        return array($terada_delta_count, $terada_new_ability_score);
+    }
+
+    //2013-11-04
+    //ここまで完成した
+    private function getTeradaNewAbilityScore($user_id, $terada_delta_count, $terada_new_ability_score) {
+        //printf("　＝　$terada_new_ability_score<br>");
+        if($terada_delta_count > 0) {
+            //printf("δが０より大きくなった回数が１回以上あったので<br>");
+            //printf("追加する実力　＝　" . $terada_new_ability_score . " / " . $terada_delta_count);
+            $terada_new_ability_score = $terada_new_ability_score / $terada_delta_count;
+            //小数点第二位で四捨五入する
+            $terada_new_ability_score = $this->Rounding($terada_new_ability_score);
+            //printf("　＝　$terada_new_ability_score<br>");
+        }
+        //printf("最後に最終的な実力　＝　" . $this->terada_ability_scores[$user_id] . " + " . $terada_new_ability_score);
+        $terada_new_ability_score += $this->terada_ability_scores[$user_id];
+        //小数点第二位で四捨五入する
+        $terada_new_ability_score = $this->Rounding($terada_new_ability_score);
+        //printf("　＝　" . $terada_new_ability_score . "<br><br>");
+        //メモリを圧迫しているのは推移だった
+        array_push($this->terada_ability_scores_transition["$user_id"], $terada_new_ability_score);
+        $this->terada_ability_scores[$user_id] = $terada_new_ability_score;
+    }
+//------------------------------------------------------------------------------------------------------
 
     private function Rounding($ability_score) {
         $ability_score = $ability_score * 10;
@@ -200,6 +261,7 @@ class SimulationUserAssessment {
     public function writeAbilityScoreTransition() {
         $this->writeOrignalTransition();
         $this->writeIshikawaTransition();
+        $this->writeTeradaTransition();
     }
     
     private function writeOrignalTransition() {
@@ -228,6 +290,19 @@ class SimulationUserAssessment {
         }
     }
     
+    private function writeTeradaTransition() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $file_name = "./UserTransition/Terada/User" . $i . ".txt";
+            $fp = fopen($file_name, "w");
+            for($j = 0; $j < count($this->terada_ability_scores_transition[$i]); $j++) {
+                fwrite($fp, $this->terada_ability_scores_transition[$i][$j] . "\n");
+            }
+            fclose($fp);
+            unset($this->terada_ability_scores_transition[$i]);
+            $this->terada_ability_scores_transition[$i] = array();
+        }
+    }
+    
     /**
      * 2013-10-26
      * 計算式が３つあるため、これを呼び出せば３つ全ての書き込みを行わせる事ができるため設置
@@ -235,6 +310,7 @@ class SimulationUserAssessment {
     public function overwriteAbilityScoreTransition() {
         $this->overwriteOrignalTransition();
         $this->overwriteIshikawaTransition();
+        $this->overwriteTeradaTransition();
     }
     
     /**
@@ -254,6 +330,9 @@ class SimulationUserAssessment {
         }
     }
     
+    /**
+     * ishikawaの計算式における、実力の推移をファイルに追加記入するための関数
+     */
     private function overwriteIshikawaTransition() {
         for($i = 0; $i < DATA_NUM; $i++) {
             $file_name = "./UserTransition/Ishikawa/User" . $i . ".txt";
@@ -264,6 +343,22 @@ class SimulationUserAssessment {
             fclose($fp);
             unset($this->ishikawa_ability_scores_transition[$i]);
             $this->ishikawa_ability_scores_transition[$i] = array();
+        }
+    }
+    
+    /**
+     * teradaの計算式における、実力の推移をファイルに追加記入するための関数
+     */
+    private function overwriteTeradaTransition() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $file_name = "./UserTransition/Terada/User" . $i . ".txt";
+            $fp = fopen($file_name, "a");
+            for($j = 0; $j < count($this->terada_ability_scores_transition[$i]); $j++) {
+                fwrite($fp, $this->terada_ability_scores_transition[$i][$j] . "\n");
+            }
+            fclose($fp);
+            unset($this->terada_ability_scores_transition[$i]);
+            $this->terada_ability_scores_transition[$i] = array();
         }
     }
     
@@ -336,6 +431,34 @@ class SimulationUserAssessment {
         printf("履歴の総和　＝　");
     }
     
+	/**
+	 * 2013-11-04
+	 * teradaの計算式が正しく動いているか確認する
+	 */
+	private function outputTeradaUserHistory($user_history, $question_assessment) {
+        printf("ユーザ" . $user_history[0][USER_ID] . "の履歴<br>");
+        printf("問題を解く前の実力　＝　" . $this->terada_ability_scores[$user_history[0][USER_ID]] . "<br>");
+        printf("<table>");
+        printf("<tr>");
+        printf("<td>挑戦した問題ID</td>");
+        printf("<td>難易度</td>");
+        printf("<td>結果</td>");
+        printf("<td>テストデータ数</td>");
+        printf("<td>正解したテストデータ数</td>");
+        printf("</tr>");
+        for($i = 0; $i < count($user_history); $i++) {
+            printf("<tr>");
+            printf("<td>" . $user_history[$i][QUESTION_ID] . "</td>");
+            printf("<td>" . $question_assessment->getTeradaQuestionDifficult($user_history[$i][QUESTION_ID]) . "</td>");
+            printf("<td>" . $user_history[$i][RESULT] . "</td>");
+            printf("<td>" . $user_history[$i][TESTDATA_NUM] . "</td>");
+            printf("<td>" . $user_history[$i][CORRECT_TESTDATA_NUM] . "</td>");
+            printf("</tr>");
+        }
+        printf("</table>");
+        printf("<br>");
+        printf("履歴の総和　＝　");
+    }
 
     private function outputHistorySum($ability_score, $difficult, $delta) {
         printf("(" . $difficult . " - " . $ability_score . ")*" . $delta . "  + ");

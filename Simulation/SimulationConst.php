@@ -3,8 +3,8 @@
   define("REQUIER_PASS", "/Users/ishikawahitoshi/Sites/test-php");
   
   //データ数
-  define("DATA_NUM", 20);
-  define("ROUND", 500);
+  define("DATA_NUM", 5);
+  define("ROUND", 10);
   
   define("COMPILE_ERROR", 0);
   define("RUNTIME_ERROR", 1);

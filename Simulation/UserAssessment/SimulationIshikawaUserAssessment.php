@@ -4,6 +4,10 @@
  * 2013-10-26
  * 石川の計算式を実装
  * 上がる量自体はそんなに大きく無いが、下がる量が結構大きい気がする
+ * 
+ * 測定結果として、実力が底辺と中間層ではOrignalより勝る
+ * しかし、実力が高い人はOrignalの方が良い結果となる
+ * やはり、難易度が高い問題でも場合によっては下がるというのが影響していると考えられる
  */
 class SimulationIshikawaUserAssessment {
     /**
@@ -28,29 +32,29 @@ class SimulationIshikawaUserAssessment {
        $delta = 0;
        switch($result) {
            case COMPILE_ERROR: //コンパイルエラー
-               $difficult = $difficult * (1 / 3);
+               //$difficult = $difficult * (4/5);
                $delta = 1;   
                break;
            case RUNTIME_ERROR: //実行時エラー
-               $difficult = $difficult * (1 / 2);
+               //$difficult = $difficult * (4/5);
                $delta = 1;
                break;
            case NOT_CORRECT: //テストデータと一つも合っていない
-               $difficult = $difficult * (2 / 3);
+               //$difficult = $difficult * (4/5);
                $delta = 1;
                break;
            case CLOSE_ANSWER: //テストデータと一つ以上合う
-               $difficult = ($difficult * (2 / 3))
-                                + (($difficult * (1 / 3)) * ($correct_testdata_num / $testdata_num));
+               //$difficult = ($difficult * (4/5))
+               //                 + (($difficult * (4/5)) * ($correct_testdata_num / $testdata_num));
                $delta = 1;
                break;
            case ACCEPTED: //全てのテストデータに正解
                $delta = 0;
                break;
        }
-       $difficlut = $difficult * 10;
-       $difficlut = round($difficlut);
-       $difficlut = $difficlut / 10;
+       $difficult = $difficult * 10;
+       $difficult = round($difficult);
+       $difficult = $difficult / 10;
        return array($delta, $difficult);
    }
 
@@ -61,26 +65,26 @@ class SimulationIshikawaUserAssessment {
        $delta = 0;
        switch($result) {
            case COMPILE_ERROR: //コンパイルエラー
-               $difficult = $difficult * (1/3);
+               $difficult = $difficult * (4/5);
                if($ability_score > $difficult){
                    $delta = 1;  
                } 
                break;
            case RUNTIME_ERROR: //実行時エラー
-               $difficult = $difficult * (1 / 2);
+               $difficult = $difficult * (4/5);
                if($ability_score > $difficult) {
                    $delta = 1;
                }
                break;
            case NOT_CORRECT: //テストデータと一つも合っていない
-               $difficult = $difficult * (2 / 3);
+               $difficult = $difficult * (4/5);
                if($ability_score > $difficult) {
                    $delta = 1;
                }
                break;
            case CLOSE_ANSWER: //テストデータと一つ以上合う
-               $difficult = ($difficult * (2 / 3))
-                                + (($difficult * (1 / 3)) * ($correct_testdata_num / $testdata_num));
+               $difficult = ($difficult * (1/2))
+                                + (($difficult * (1/2)) * ($correct_testdata_num / $testdata_num));
                if($ability_score < $difficult) {
                        $delta = 1;
                }
@@ -89,9 +93,9 @@ class SimulationIshikawaUserAssessment {
                $delta = 1;
                break;
        }
-       $difficlut = $difficult * 10;
-       $difficlut = round($difficlut);
-       $difficlut = $difficlut / 10;
+       $difficult = $difficult * 10;
+       $difficult = round($difficult);
+       $difficult = $difficult / 10;
        return array($delta, $difficult);
    }
      

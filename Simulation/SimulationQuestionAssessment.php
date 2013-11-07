@@ -1,16 +1,23 @@
 <?php
+/**
+ * 2013-11-07
+ * 三つの計算式の実装が完了
+ */
 
 require_once("./QuestionAssessment/SimulationOrignalQuestionAssessment.php");
 
 class SimulationQuestionAssessment {
     //orignal計算式での、難易度の推移を記録
-    private $orignal_difficult_transition = array();
+    private $orignal_difficult_transition  = array();
     //ishikawa計算式での、難易度の推移を記録
     private $ishikawa_difficult_transition = array();
+	//terada計算式での、難易度の推移を記録
+	private $terada_difficult_transition   = array();
     
     //各計算式での今現在の難易度を保管
-    private $orignal_difficult = array();
+    private $orignal_difficult  = array();
     private $ishikawa_difficult = array();
+	private $terada_difficult   = array();
     
     private $orignal_question_assessment;
     
@@ -24,31 +31,38 @@ class SimulationQuestionAssessment {
     function initialize() {
        for($i = 0; $i < DATA_NUM; $i++) {
            $difficult = mt_rand(1, 10);
-           //orignalの初期化
-           $this->orignal_difficult_transition["$i"] = array($difficult);
-           $this->orignal_difficult[$i] = $difficult;
-           //ishikawaの初期化
+		   /**
+		    * 3つの式それぞれの推移を記録する変数を初期化
+		    * *_difficult 現段階での難易度を保持
+		    * *_difficult_transition 難易度の推移を次々と格納していく（連想配列）
+		    **/
+           $this->orignal_difficult_transition["$i"]  = array($difficult);
            $this->ishikawa_difficult_transition["$i"] = array($difficult);
-           $this->ishikawa_difficult[$i] = $difficult;
+		   $this->terada_difficult_transition["$i"]   = array($difficult);
+		   $this->orignal_difficult[$i]  = $difficult;
+		   $this->ishikawa_difficult[$i] = $difficult;
+		   $this->terada_difficult[$i]   = $difficult;
        }
        $this->orignal_question_assessment = new SimulationOrignalQuestionAssessment();
     }
     
-    public function Assessment($question_history, $user_assessment, $point_in_time_orignal_ability_scores, $point_in_time_ishikawa_ability_scores) {
+    public function Assessment($question_history, $user_assessment, $point_in_time_orignal_ability_scores, $point_in_time_ishikawa_ability_scores, $point_in_time_terada_ability_scores) {
          //各計算でξが0以外になった回数をカウント
-        $orignal_xi_count = 0;
+        $orignal_xi_count  = 0;
         $ishikawa_xi_count = 0;
+        $terada_xi_count   = 0;
       
         //各計算式で求まった新しい難易度
-        $orignal_new_difficult = 0;
+        $orignal_new_difficult  = 0;
         $ishikawa_new_difficult = 0;
+        $terada_new_difficult   = 0;
         
         $question_id = $question_history[0][QUESTION_ID];
         
         //2013-10-10
         //計算が正しく行われているかを確認するため
         //orignalの出力
-        // printf("--------------Orignal--------------------<br>");
+        //printf("--------------orignal--------------------<br>");
         // $this->outputQuestionHistory($question_history, 
                                      // $user_assessment, 
                                      // $point_in_time_orignal_ability_scores[$question_id], 
@@ -68,9 +82,9 @@ class SimulationQuestionAssessment {
                                                                                $orignal_new_difficult, 
                                                                                $this->orignal_difficult[$question_id]);
         
-        //printf("--------------Orignal END--------------------<br>");
+        //printf("--------------orignal END--------------------<br>");
         
-        //printf("--------------Ishikawa--------------------<br>");
+        //printf("--------------ishikawa--------------------<br>");
         //ishikawaの出力用
         // $this->outputQuestionHistory($question_history, 
                                      // $user_assessment, 
@@ -89,7 +103,27 @@ class SimulationQuestionAssessment {
                                                                                 $ishikawa_new_difficult, 
                                                                                 $this->ishikawa_difficult[$question_id]);
         
-        //printf("--------------Ishikawa END--------------------<br>");
+        //printf("--------------ishikawa END--------------------<br>");
+        
+        //printf("--------------terada--------------------<br>");
+        //teradaの出力用
+        // $this->outputQuestionHistory($question_history, 
+                                    // $user_assessment, 
+                                    // $point_in_time_terada_ability_scores[$question_id], 
+                                    // $this->terada_difficult[$question_id]);
+        //teradaでの難易度計算                             
+        for ($i = 0; $i < count($question_history); $i++) {
+            list($terada_xi_count, $terada_new_difficult) = $this->orignalQuestionAssessment(
+                    $question_history[$i], $terada_xi_count, 
+                    $terada_new_difficult, $this->terada_difficult[$question_id], 
+                    $point_in_time_terada_ability_scores[$question_id][$i]);
+        }
+        $this->terada_difficult[$question_id] = $this->getOrignalNewDifficult($question_id, 
+                                                                              $terada_xi_count, 
+                                                                              $terada_new_difficult, 
+                                                                              $this->terada_difficult[$question_id]);
+        
+        //printf("--------------terada END--------------------<br>");
     }
 
     
@@ -155,8 +189,13 @@ class SimulationQuestionAssessment {
     public function writeDifficultTransition() {
         $this->writeOrignalTransition();
         $this->writeIshikawaTransition();
+        $this->writeTeradaTransition();
     }
     
+    /**
+     * 2013-11-07
+     * orignalの計算式で求まった難易度の推移を記録していく
+     */
     private function writeOrignalTransition() {
         for($i = 0; $i < DATA_NUM; $i++) {
             $file_name = "./QuestionTransition/Orignal/Question" . $i . ".txt";
@@ -168,12 +207,31 @@ class SimulationQuestionAssessment {
         }
     }
     
+    /**
+     * 2013-11-07
+     * ishikawaの計算式で求まった難易度の推移を記録していく
+     */
     private function writeIshikawaTransition() {
         for($i = 0; $i < DATA_NUM; $i++) {
             $file_name = "./QuestionTransition/Ishikawa/Question" . $i . ".txt";
             $fp = fopen($file_name, "w");
             for($j = 0; $j < count($this->ishikawa_difficult_transition[$i]); $j++) {
                 fwrite($fp, $this->ishikawa_difficult_transition[$i][$j] . "\n");
+            }
+            fclose($fp);
+        }
+    }
+    
+    /**
+     * 2013-11-07
+     * teradaの計算式で求まった難易度の推移を記録していく
+     */
+    private function writeTeradaTransition() {
+        for($i = 0; $i < DATA_NUM; $i++) {
+            $file_name = "./QuestionTransition/Terada/Question" . $i . ".txt";
+            $fp = fopen($file_name, "w");
+            for($j = 0; $j < count($this->terada_difficult_transition[$i]); $j++) {
+                fwrite($fp, $this->terada_difficult_transition[$i][$j] . "\n");
             }
             fclose($fp);
         }
@@ -188,6 +246,10 @@ class SimulationQuestionAssessment {
     public function getIshikawaQuestionDifficult($question_id) {
         return $this->ishikawa_difficult[$question_id];
     }
+	
+	public function getTeradaQuestionDifficult($question_id) {
+		return $this->terada_difficult[$question_id];
+	}
     
     /**
      * 2013-10-23
@@ -196,6 +258,7 @@ class SimulationQuestionAssessment {
     public function normalization() {
        $this->orignalNomalization();
        $this->ishikawaNomalization();
+       $this->teradaNomalization();
     }
 
     //Orignal, Ishikawa, Terada用の３つの正規化を書かなければいけない
@@ -213,7 +276,7 @@ class SimulationQuestionAssessment {
                 $min_difficult = $this->orignal_difficult[$i];
             }
         }
-        //printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
+        //printf("orignalの正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
         for($i = 0; $i < count($this->orignal_difficult); $i++) {
             //printf("難易度の正規化をします<br>");
             //printf("問題" . $i . "の正規前　＝　" . $this->orignal_difficult[$i] . "<br>");
@@ -240,7 +303,7 @@ class SimulationQuestionAssessment {
                 $min_difficult = $this->ishikawa_difficult[$i];
             }
         }
-        //printf("正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
+        //printf("ishikawaの正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
         for($i = 0; $i < count($this->ishikawa_difficult); $i++) {
             //printf("難易度の正規化をします<br>");
             //printf("問題" . $i . "の正規前　＝　" . $this->ishikawa_difficult[$i] . "<br>");
@@ -255,6 +318,30 @@ class SimulationQuestionAssessment {
     }
     
     private function teradaNomalization() {
+        $max_difficult = 0;
+        $min_difficult = 10;
+        for($i = 0; $i < count($this->terada_difficult); $i++) {
+            //最大値の更新
+            if($this->terada_difficult[$i] > $max_difficult) {
+                $max_difficult = $this->terada_difficult[$i];
+            }
+            //最小値の更新
+            if($this->terada_difficult[$i] < $min_difficult) {
+                $min_difficult = $this->terada_difficult[$i];
+            }
+        }
+        //printf("teradaの正規化の範囲" . $min_difficult . "~" . $max_difficult . "<br>");
+        for($i = 0; $i < count($this->terada_difficult); $i++) {
+            //printf("難易度の正規化をします<br>");
+            //printf("問題" . $i . "の正規前　＝　" . $this->terada_difficult[$i] . "<br>");
+            //printf("問題" . $i . "の正規化<br>");
+            $difficult = (10 / ($max_difficult - $min_difficult)) * ($this->terada_difficult[$i] - $min_difficult);
+            $difficult = $this->Rounding($difficult);
+            //printf("正規化後の難易度＝" . $difficult . "<br>");
+            //printf("<br>");
+            $this->terada_difficult[$i] = $difficult;
+            array_push($this->terada_difficult_transition["$i"], $difficult);
+        }
     }
     
     //これ以降は計算が正しく行われているかをチャックするための関数
