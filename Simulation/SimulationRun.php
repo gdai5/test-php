@@ -13,7 +13,9 @@ td {
 /**
  * 最終更新日
  * 2013-11-9
- * 三つの計算式全て検証済み
+ * ・三つの計算式の実装および、動作確認済み
+ * ・難易度は全て真の難易度という過程で行った時の実力の変化を測定する
+ * 
  */
  
 
@@ -112,7 +114,7 @@ class SimulationRun{
         $this->user_assessment = new SimulationUserAssessment();
         $this->user_assessment->initialize();
         $this->question_assessment = new SimulationQuestionAssessment();
-        $this->question_assessment->initialize();
+        $this->question_assessment->initialize($this->true_difficult);
     }
     
     
@@ -145,7 +147,7 @@ class SimulationRun{
     //データセットの生成
     private function makeDataSet() {
         $question_number = DATA_NUM - 1;
-        for($i = 0; $i < 1000; $i++) {
+        for($i = 0; $i < 5; $i++) {
             for($j = 0; $j < DATA_NUM; $j++) {
                 $data = array($j, mt_rand(0, $question_number));
                 array_push($this->data_set, $data);
@@ -221,7 +223,7 @@ class SimulationRun{
             $this->updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             $this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             //ユーザの実力計算
-            //printf("-------------------" . $round . "回目の計算-------------------<br>");
+            printf("-------------------" . $round . "回目の計算-------------------<br>");
             $this->user_assessment->Assessment($this->users_history[$user_id], $this->question_assessment);
             /**
              * 2013-10-11
@@ -230,7 +232,9 @@ class SimulationRun{
              * 計算が終わったら、計算に使った履歴を削除する
              * 無事動いている様子なので、検証する
              */ 
+            
             if($round % ROUND == 0) {
+                /**
                 //直接問題の数を入れる
                 for($j = 0; $j < count($this->questions_history); $j++) {
                     //一回以上誰かに問題を解かれているかどうか確認している
@@ -254,6 +258,7 @@ class SimulationRun{
                 }
                 //正規化
                 $this->question_assessment->normalization();
+                **/
                 //ユーザの履歴がメモリーリークの原因だったので、上書き作業をする
                 if($round == ROUND) {
                     //printf("通ってる");
@@ -266,7 +271,7 @@ class SimulationRun{
             //メモリ量の確認
             //$this->dumpMemory();
             //printf("<br>");
-            //printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
+            printf("-------------------" . $round . "回目の計算終了-------------------<br><br><br>");
             $round++;
         }
         //最後に推移などを記録
@@ -314,26 +319,7 @@ class SimulationRun{
         }  
         var_dump(number_format(memory_get_usage() - $initialMemoryUse));  
     }  
-    
-    /**
-     * 問題の真の難易度を取得するための関数
-     * 難易度を真で固定した時にシミュレーションはどう動くのか、検証のため用意
-     */
-    public function getTrueDifficult($question_id) {
-        return $this->true_difficult[$question_id];
-    }
 
 } 
-
-/**
- * 2013/10/2
- * シミュレーション実験向けに全ての処理をメインメモリ上で行うように変更する
- * 旧バージョン=>「OldSimulationRun.php」
- */
-set_time_limit(120);
-$simulation_run = new SimulationRun();
-$simulation_run->Run();
-//NomalUserModelの検証完了 2013-10-07
-//$simulation_run->nomalUserModelTest();
 
 ?>

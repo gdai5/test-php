@@ -5,6 +5,7 @@
  */
 
 require_once("./QuestionAssessment/SimulationOrignalQuestionAssessment.php");
+require_once("./SimulationRun.php");
 
 class SimulationQuestionAssessment {
     //orignal計算式での、難易度の推移を記録
@@ -25,12 +26,14 @@ class SimulationQuestionAssessment {
     //正規化を用いる為にそのユーザが何回正解したかをカウントしておくもの
     private $accepted_counter = array();
     
+    
     /**
      * 難易度の推移と今現在の難易度を保管する配列たちを初期化
      */
-    function initialize() {
+    function initialize($true_difficult) {
        for($i = 0; $i < DATA_NUM; $i++) {
-           $difficult = mt_rand(1, 10);
+           //$difficult = mt_rand(1, 10);
+           $difficult = $true_difficult[$i];
 		   /**
 		    * 3つの式それぞれの推移を記録する変数を初期化
 		    * *_difficult 現段階での難易度を保持
