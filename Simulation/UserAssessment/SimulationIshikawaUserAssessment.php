@@ -18,7 +18,7 @@ class SimulationIshikawaUserAssessment {
      * @return delta        計算をする場合は1, そうでない場合は0 
      */
      public function ishikawaUserDeltaFlag($difficult, $ability_score ,$result, $correct_testdata_num, $testdata_num) {
-         if($ability_score >= $difficult) {
+         if($ability_score > $difficult) {
              return $this->selectEasyQuestion($difficult, $ability_score, $result, $correct_testdata_num, $testdata_num);
          }else{
              return $this->selectDifficultQuestion($difficult, $ability_score, $result, $correct_testdata_num, $testdata_num);
@@ -32,20 +32,20 @@ class SimulationIshikawaUserAssessment {
        $delta = 0;
        switch($result) {
            case COMPILE_ERROR: //コンパイルエラー
-               //$difficult = $difficult * (4/5);
+               $difficult = $difficult * (4/5);
                $delta = 1;   
                break;
            case RUNTIME_ERROR: //実行時エラー
-               //$difficult = $difficult * (4/5);
+               $difficult = $difficult * (4/5);
                $delta = 1;
                break;
            case NOT_CORRECT: //テストデータと一つも合っていない
-               //$difficult = $difficult * (4/5);
+               $difficult = $difficult * (4/5);
                $delta = 1;
                break;
            case CLOSE_ANSWER: //テストデータと一つ以上合う
-               //$difficult = ($difficult * (4/5))
-               //                 + (($difficult * (4/5)) * ($correct_testdata_num / $testdata_num));
+               $difficult = ($difficult * (4/5))
+                                + (($difficult * (1/5)) * ($correct_testdata_num / $testdata_num));
                $delta = 1;
                break;
            case ACCEPTED: //全てのテストデータに正解
@@ -90,7 +90,9 @@ class SimulationIshikawaUserAssessment {
                }
                break;
            case ACCEPTED: //全てのテストデータに正解
-               $delta = 1;
+               if($ability_score < $difficult) {
+                   $delta = 1;
+               }
                break;
        }
        $difficult = $difficult * 10;

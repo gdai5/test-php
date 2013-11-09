@@ -12,8 +12,8 @@ td {
 
 /**
  * 最終更新日
- * 2013-11-4
- * OrignalとIshikawaの計算式を平行して動かしても大丈夫だった
+ * 2013-11-9
+ * 三つの計算式全て検証済み
  */
  
 
@@ -85,7 +85,7 @@ class SimulationRun{
                 $true_difficult = 10;
             }
             $this->true_ability_scores[$i] = $true_ability_score;
-            $this->true_difficult[$i] = $true_difficult;
+            $this->true_difficult[$i]      = $true_difficult;
             $this->question_testdata_num[$i]   = mt_rand(1, 40);
             
             //ユーザの履歴を初期化
@@ -96,9 +96,9 @@ class SimulationRun{
              * その後初期化する
              */
             $this->questions_history[$i][0] = array();
-            $this->point_in_time_orignal_ability_scores[$i][0] = array();
+            $this->point_in_time_orignal_ability_scores[$i][0]  = array();
             $this->point_in_time_ishikawa_ability_scores[$i][0] = array();
-			$this->point_in_time_terada_ability_scores[$i][0] = array();
+			$this->point_in_time_terada_ability_scores[$i][0]   = array();
             
             //ユーザと問題の履歴の中で最も古い履歴を示す配列の番号を０で初期化する
             $this->users_oldest_history_number[$i] = 0;
@@ -126,7 +126,7 @@ class SimulationRun{
             $this->orignal_user_ability_score[$i]  = $ability_score;
             $this->ishikawa_user_ability_score[$i] = $ability_score;
             $this->terada_user_ability_score[$i]   = $ability_score;
-            $difficult     = $this->getRandomRealNumber();
+            $difficult = $this->getRandomRealNumber();
             $this->orignal_question_difficult[$i]  = $difficult;
             $this->ishikawa_question_difficult[$i] = $difficult; 
             $this->terada_question_difficult[$i]   = $difficult;
@@ -136,7 +136,7 @@ class SimulationRun{
     
     //1~10までの範囲で小数点第一位までの実数を返す
     private function getRandomRealNumber() {
-        $r = mt_rand(1, 10);
+        $r = mt_rand(0, 10);
         $r = $r / 10;
         $r = mt_rand(1, 9) + $r;
         return $r;
@@ -145,7 +145,7 @@ class SimulationRun{
     //データセットの生成
     private function makeDataSet() {
         $question_number = DATA_NUM - 1;
-        for($i = 0; $i < 5; $i++) {
+        for($i = 0; $i < 1000; $i++) {
             for($j = 0; $j < DATA_NUM; $j++) {
                 $data = array($j, mt_rand(0, $question_number));
                 array_push($this->data_set, $data);
@@ -303,127 +303,10 @@ class SimulationRun{
         }
         fclose($fp);
     }
-
-//--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
-    //履歴の更新がちゃんとできているか確認用プログラム
-    private function chkUserHistory() {
-        printf("<br>");
-        printf("<br>");
-        for($i = 0; $i < count($this->users_history); $i++) {
-            for($j = 0; $j < $this->users_oldest_history_number[$i]; $j++) {
-                printf("ユーザID : " . $this->users_history[$i][$j][0] . "<br>");
-                printf("問題番号 : " . $this->users_history[$i][$j][1] . "<br>");
-                printf("結果 : " . $this->users_history[$i][$j][2] . "<br>");
-                printf("正解数 : " . $this->users_history[$i][$j][3] . "<br>");
-            }
-            printf("<br>");
-        }
-        print_r($this->users_oldest_history_number);
-        printf("<br>");
-        printf("<br>");
-    }
     
-    //一ユーザが挑戦した場合の件数を表示
-    private function chkUpdateUserHistoryNum() {
-        printf("<br>");
-        printf("<br>");
-        for($j = 0; $j < 30; $j++) {
-                printf("ユーザID : " . $this->users_history[0][$j][0] . "<br>");
-                printf("問題番号 : " . $this->users_history[0][$j][1] . "<br>");
-                printf("結果 : " . $this->users_history[0][$j][2] . "<br>");
-                printf("正解数 : " . $this->users_history[0][$j][3] . "<br>");
-                printf("<br>");
-        }
-        print_r($this->users_oldest_history_number);
-        printf("<br>");
-        printf("<br>");
-    }
-    
-    private function chkQuestionHistory() {
-        printf("<br>");
-        printf("<br>");
-        for($i = 0; $i < count($this->questions_history); $i++) {
-            for($j = 0; $j < $this->questions_oldest_history_number[$i]; $j++) {
-                printf("問題番号 : " . $this->questions_history[$i][$j][1] . "<br>");
-                printf("ユーザID : " . $this->questions_history[$i][$j][0] . "<br>");
-                printf("結果 : " . $this->questions_history[$i][$j][2] . "<br>");
-                printf("正解数 : " . $this->questions_history[$i][$j][3] . "<br>");
-            }
-            printf("<br>");
-        }
-        print_r($this->questions_oldest_history_number);
-        printf("<br>");
-        printf("<br>");
-    }
-    
-    private function chkUpdateQuestionHistoryNum() {
-        printf("<br>");
-        printf("<br>");
-        for($j = 0; $j < 30; $j++) {
-            printf("問題番号 : " . $this->questions_history[0][$j][1] . "<br>");
-            printf("ユーザID : " . $this->questions_history[0][$j][0] . "<br>");
-            printf("結果 : " . $this->questions_history[0][$j][2] . "<br>");
-            printf("正解数 : " . $this->questions_history[0][$j][3] . "<br>");
-            printf("<br>");
-        }
-        print_r($this->questions_oldest_history_number);
-        printf("<br>");
-        printf("<br>");
-    }
-    
-    //ユーザモデルが正しく動いているかどうか確認する
-    public function nomalUserModelTest() {
-        $true_ability_score = 5;
-        $true_difficult     = 5;
-        $testdata_num       = 20;
-        //どの結果が何回出たのかをカウント
-        $totaling = array(0, 0, 0, 0, 0);
-        $nomal_user_model   = new NomalUserModel();
-        printf("<table>");
-        printf("<tr>");
-        printf("<td>番号</td>");
-        printf("<td>真の実力</td>");
-        printf("<td>真の難易度</td>");
-        printf("<td>結果</td>");
-        printf("<td>テストデータ数</td>");
-        printf("<td>正解したテストデータ数</td>");
-        printf("</tr>");
-        for($i = 0; $i < 1000; $i++) {
-            list($result, $correct_testdata_num) = 
-                    $nomal_user_model->run($true_ability_score, $true_difficult, $testdata_num);
-            printf("<tr>");
-            printf("<td>$i</td>");
-            printf("<td>$true_ability_score</td>");
-            printf("<td>$true_difficult</td>");
-            printf("<td>$result</td>");
-            printf("<td>$testdata_num</td>");
-            printf("<td>$correct_testdata_num</td>");
-            printf("</tr>");
-            $totaling[$result] += 1;
-        }
-        printf("</table>");
-        print_r($totaling);
-    }
-
-    private function outputTrueAbilityScoreAndDifficult() {
-        printf("<table>");
-        printf("<tr>");
-        printf("<td>ユーザID</td>");
-        printf("<td>真の実力</td>");
-        printf("<td>挑戦した問題ID</td>");
-        printf("<td>真の難易度</td>");
-        printf("</tr>");
-        for($i = 0; $i < count($this->true_ability_scores); $i++) {
-            printf("<tr>");
-            printf("<td>$i</td>");
-            printf("<td>" . $this->true_ability_scores[$i] . "</td>");
-            printf("<td>$i</td>");
-            printf("<td>" . $this->true_difficult[$i] . "</td>");
-            printf("</tr>");
-        }
-        printf("</table>");
-    }
-    
+    /**
+     * メモリーの使用量を確認するための関数
+     */
     private function dumpMemory()  {  
         static $initialMemoryUse = null;  
         if ( $initialMemoryUse === null )  {  
@@ -431,7 +314,15 @@ class SimulationRun{
         }  
         var_dump(number_format(memory_get_usage() - $initialMemoryUse));  
     }  
-//--------------------------------------------確認用のプログラム（シミュレーションには関係ない）--------------------------------------------
+    
+    /**
+     * 問題の真の難易度を取得するための関数
+     * 難易度を真で固定した時にシミュレーションはどう動くのか、検証のため用意
+     */
+    public function getTrueDifficult($question_id) {
+        return $this->true_difficult[$question_id];
+    }
+
 } 
 
 /**

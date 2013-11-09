@@ -62,7 +62,7 @@ class SimulationQuestionAssessment {
         //2013-10-10
         //計算が正しく行われているかを確認するため
         //orignalの出力
-        //printf("--------------orignal--------------------<br>");
+        // printf("--------------orignal--------------------<br>");
         // $this->outputQuestionHistory($question_history, 
                                      // $user_assessment, 
                                      // $point_in_time_orignal_ability_scores[$question_id], 
@@ -82,10 +82,10 @@ class SimulationQuestionAssessment {
                                                                                $orignal_new_difficult, 
                                                                                $this->orignal_difficult[$question_id]);
         
-        //printf("--------------orignal END--------------------<br>");
-        
-        //printf("--------------ishikawa--------------------<br>");
-        //ishikawaの出力用
+        // printf("--------------orignal END--------------------<br>");
+                
+        // printf("--------------ishikawa--------------------<br>");
+        // //ishikawaの出力用
         // $this->outputQuestionHistory($question_history, 
                                      // $user_assessment, 
                                      // $point_in_time_ishikawa_ability_scores[$question_id], 
@@ -103,14 +103,14 @@ class SimulationQuestionAssessment {
                                                                                 $ishikawa_new_difficult, 
                                                                                 $this->ishikawa_difficult[$question_id]);
         
-        //printf("--------------ishikawa END--------------------<br>");
+        // printf("--------------ishikawa END--------------------<br>");
         
-        //printf("--------------terada--------------------<br>");
-        //teradaの出力用
+        // printf("--------------terada--------------------<br>");
+        // //teradaの出力用
         // $this->outputQuestionHistory($question_history, 
-                                    // $user_assessment, 
-                                    // $point_in_time_terada_ability_scores[$question_id], 
-                                    // $this->terada_difficult[$question_id]);
+                                     // $user_assessment, 
+                                     // $point_in_time_terada_ability_scores[$question_id], 
+                                     // $this->terada_difficult[$question_id]);
         //teradaでの難易度計算                             
         for ($i = 0; $i < count($question_history); $i++) {
             list($terada_xi_count, $terada_new_difficult) = $this->orignalQuestionAssessment(
@@ -133,9 +133,9 @@ class SimulationQuestionAssessment {
      */
     private function orignalQuestionAssessment($history_data, $xi_count, $new_difficult, $difficult, $ability_score) {
         //計算を行う前に必要なものを変数に入れておく
-        $user_id       = $history_data[USER_ID];
-        $question_id   = $history_data[QUESTION_ID];
-        $result        = $history_data[RESULT];
+        $user_id      = $history_data[USER_ID];
+        $question_id  = $history_data[QUESTION_ID];
+        $result       = $history_data[RESULT];
         
         //ここから問題の難易度計算を行う
         $xi = $this->orignal_question_assessment->orignalQuestionXiFlag($difficult, $ability_score ,$result);

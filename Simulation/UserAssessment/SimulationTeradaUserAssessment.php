@@ -14,9 +14,13 @@ class SimulationTeradaUserAssessment {
      * @return delta        計算をする場合は1, そうでない場合は0 
      */
      public function teradaUserDeltaFlag($difficult, $ability_score ,$result, $correct_testdata_num, $testdata_num) {
-         if($ability_score >= $difficult) {
+         //実力と難易度が同じ場合は、δを必ず０に設定する為に設置    
+         if($ability_score == $difficult) {
+             return 0;
+         }
+         if($ability_score > $difficult) {
              return $this->selectEasyQuestion($difficult, $result, $correct_testdata_num, $testdata_num);
-         }else{
+         }else {
              return $this->selectDifficultQuestion($difficult, $result, $correct_testdata_num, $testdata_num);
          }
      }
