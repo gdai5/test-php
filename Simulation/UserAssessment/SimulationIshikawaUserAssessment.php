@@ -83,8 +83,8 @@ class SimulationIshikawaUserAssessment {
                }
                break;
            case CLOSE_ANSWER: //テストデータと一つ以上合う
-               $difficult = ($difficult * (1/2))
-                                + (($difficult * (1/2)) * ($correct_testdata_num / $testdata_num));
+               $difficult = ($difficult * (2/3))
+                                + (($difficult * (1/3)) * ($correct_testdata_num / $testdata_num));
                if($ability_score < $difficult) {
                        $delta = 1;
                }

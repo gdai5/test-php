@@ -32,6 +32,8 @@ class SimulationQuestionAssessment {
      */
     function initialize($true_difficult) {
        for($i = 0; $i < DATA_NUM; $i++) {
+           //2013-11-09
+           //ここを少し弄った
            //$difficult = mt_rand(1, 10);
            $difficult = $true_difficult[$i];
 		   /**
