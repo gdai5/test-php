@@ -35,13 +35,13 @@ class SimulationTeradaUserAssessment {
                $delta = 1;   
                break;
            case RUNTIME_ERROR: //実行時エラー
-               $delta = 0.7;
+               $delta = 1;
                break;
            case NOT_CORRECT: //テストデータと一つも合っていない
-               $delta = 0.5;
+               $delta = 1;
                break;
            case CLOSE_ANSWER: //テストデータと一つ以上合う
-               $delta = 0.5 - 0.5 * ($correct_testdata_num / $testdata_num);
+               $delta = 1 - 1 * ($correct_testdata_num / $testdata_num);
                break;
            case ACCEPTED: //全てのテストデータに正解
                $delta = 0;
@@ -69,7 +69,7 @@ class SimulationTeradaUserAssessment {
                $delta = 0;
                break;
            case CLOSE_ANSWER:
-               $delta = 0.5 + 0.5 * ($correct_testdata_num / $testdata_num);
+               $delta = 1 * ($correct_testdata_num / $testdata_num);
                break;
            case ACCEPTED:
                $delta = 1;

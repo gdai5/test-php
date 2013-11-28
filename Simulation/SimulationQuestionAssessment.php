@@ -34,8 +34,10 @@ class SimulationQuestionAssessment {
        for($i = 0; $i < DATA_NUM; $i++) {
            //2013-11-09
            //ここを少し弄った
-           //$difficult = mt_rand(1, 10);
-           $difficult = $true_difficult[$i];
+           //難易度を変動させる時
+           $difficult = mt_rand(1, 10);
+           //難易度を固定する時
+           //$difficult = $true_difficult[$i];
 		   /**
 		    * 3つの式それぞれの推移を記録する変数を初期化
 		    * *_difficult 現段階での難易度を保持

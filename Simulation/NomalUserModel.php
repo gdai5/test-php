@@ -17,7 +17,12 @@ class NomalUserModel extends UserModel{
      * @return $correct_answer_ratio 正解率
      */
     protected function getCorrectAnswerRatio($true_ability, $true_difficult){
-        $correct_answer_ratio = 50 + 10 * ($true_ability - $true_difficult);
+        //model1
+        //正解率の出し方はこれが良い気がする(一番近い値にいくので)
+        //モデルとして正当性を主張できるようにする
+        $correct_answer_ratio = 50 + 20 * ($true_ability - $true_difficult);
+        //model2：結果が良くない
+        //$correct_answer_ratio = 100 + 20 * ($true_ability - $true_difficult);
         if ($correct_answer_ratio < 0) { //難易度が実力よりも５以上大きかったとき
             $correct_answer_ratio = 0;
         }

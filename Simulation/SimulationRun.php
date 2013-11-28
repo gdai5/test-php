@@ -166,8 +166,7 @@ class SimulationRun{
         $user_update_num = $this->users_oldest_history_number[$user_id];
         $this->users_history[$user_id][$user_update_num] = 
                 array($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
-        //履歴の中で次に更新すべき場所を決める
-        //$this->user_assessment->chkAnswerAccepted($user_id, $result);
+        //履歴が３０件以上たまっているかどうかチェック
         if($this->users_oldest_history_number[$user_id] < 29) {
             $this->users_oldest_history_number[$user_id] += 1;
         }else{
@@ -193,8 +192,6 @@ class SimulationRun{
         $this->point_in_time_ishikawa_ability_scores[$question_id][$question_update_num] = $ishikawa_ability_score;
 		$this->point_in_time_terada_ability_scores[$question_id][$question_update_num]   = $terada_ability_score;
         $this->questions_oldest_history_number[$question_id] += 1;
-        //履歴の記録
-        //$this->question_assessment->chkAnswerAccepted($question_id, $result);
     }
     
     /**
@@ -221,7 +218,8 @@ class SimulationRun{
             list($result, $correct_testdata_num) = 
                     $nomal_user_model->run($true_ability_score, $true_difficult, $testdata_num);
             $this->updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
-            //$this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
+            //難易度を固定にする場合はここも消さないとメモリーを圧迫する
+            $this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             //ユーザの実力計算
             //printf("-------------------" . $round . "回目の計算-------------------<br>");
             $this->user_assessment->Assessment($this->users_history[$user_id], $this->question_assessment);
@@ -234,7 +232,6 @@ class SimulationRun{
              */ 
             
             if($round % ROUND == 0) {
-                /**ここを少しコメントアウト
                 //直接問題の数を入れる
                 for($j = 0; $j < count($this->questions_history); $j++) {
                     //一回以上誰かに問題を解かれているかどうか確認している
@@ -258,7 +255,6 @@ class SimulationRun{
                 }
                 //正規化
                 $this->question_assessment->normalization();
-                **/
                 //ユーザの履歴がメモリーリークの原因だったので、上書き作業をする
                 if($round == ROUND) {
                     //printf("通ってる");
