@@ -26,9 +26,15 @@ class SimulationQuestionAssessment {
     //正規化を用いる為にそのユーザが何回正解したかをカウントしておくもの
     private $accepted_counter = array();
     
+    //2013-11-29
+    //初期設定で与えられた難易度を保管する
+    private $init_difficults = array();
+    
     
     /**
      * 難易度の推移と今現在の難易度を保管する配列たちを初期化
+     * 2013-11-29
+     * 初期設定で与えた難易度を簡単に取得出来るように、新しい配列（$init_difficults）を用意
      */
     function initialize($true_difficult) {
        for($i = 0; $i < DATA_NUM; $i++) {
@@ -49,8 +55,30 @@ class SimulationQuestionAssessment {
 		   $this->orignal_difficult[$i]  = $difficult;
 		   $this->ishikawa_difficult[$i] = $difficult;
 		   $this->terada_difficult[$i]   = $difficult;
+           //2013-11-29　同じシミュレーションの状況を実現させるために用意した
+           $this->init_difficults[$i] = $difficult;
+           
        }
        $this->orignal_question_assessment = new SimulationOrignalQuestionAssessment();
+    }
+    
+    /**
+     * 2013-12-02
+     * 同じシミュレーションを行えるようにした初期化
+     */
+    function initSameSimulation(array $init_difficults) {
+        for($i = 0; $i < count($init_difficults); $i++) {
+            $difficult = $init_difficults[$i];
+            $this->orignal_difficult_transition["$i"]  = array($difficult);
+            $this->ishikawa_difficult_transition["$i"] = array($difficult);
+            $this->terada_difficult_transition["$i"]   = array($difficult);
+            $this->orignal_difficult[$i]  = $difficult;
+            $this->ishikawa_difficult[$i] = $difficult;
+            $this->terada_difficult[$i]   = $difficult;
+            //2013-11-29　同じシミュレーションの状況を実現させるために用意した
+            $this->init_difficults[$i] = $difficult;
+        }
+        $this->orignal_question_assessment = new SimulationOrignalQuestionAssessment();
     }
     
     public function Assessment($question_history, $user_assessment, $point_in_time_orignal_ability_scores, $point_in_time_ishikawa_ability_scores, $point_in_time_terada_ability_scores) {
@@ -380,6 +408,10 @@ class SimulationQuestionAssessment {
 
     private function outputHistorySum($ability_score, $difficult, $xi) {
         printf("(" . $ability_score . " - " . $difficult . ")*" . $xi . "  + ");
+    }
+    
+    public final function getInitDifficult() {
+        return $this->init_difficults;
     }
     
 }

@@ -27,8 +27,13 @@ class SimulationUserAssessment {
 	//Teradaの計算式関数を呼び出すだけのもの
 	private $terada_user_assessment;
     
+    //2013-11-29 同じシミュレーションを実現するために、初期設定で与えた実力を保存する
+    private $init_ability_scores = array();
+    
     /**
      * 実力の推移と今現在の実力を保管する配列たちを初期化
+     * 2013-11-29
+     * 初期設定で与えた実力を簡単に取得出来るように、新しい配列（$init_ability_scores）を用意
      */
     function initialize() {
        for($i = 0; $i < DATA_NUM; $i++) {
@@ -39,15 +44,36 @@ class SimulationUserAssessment {
            $this->orignal_ability_scores[$i]  = $ability_score;
            $this->ishikawa_ability_scores[$i] = $ability_score;
            $this->terada_ability_scores[$i]   = $ability_score;
+           //シミュレーションには直接関係しない
+           $this->init_ability_scores[$i] = $ability_score;
        }
        
        //各種の計算式のクラスインスタンスを生成している
        $this->orignal_user_assessment  = new SimulationOrignalUserAssessment();
        $this->ishikawa_user_assessment = new SimulationIshikawaUserAssessment();
 	   $this->terada_user_assessment   = new SimulationTeradaUserAssessment();
-       //問題の難易度を引っ張ってくるだけのもの
-       //$this->simulation_question_assessment = new SimulationQuestionAssessment();
-       
+    }
+    
+    /**
+     * 2013-12-02
+     * 全く同じ実験ができるようにした初期化
+     */
+    function initSameSimulation(array $init_ability_scores) {
+        for($i = 0; $i < count($init_ability_scores); $i++) {
+            $ability_score = $init_ability_scores[$i];
+            $this->orignal_ability_scores_transition["$i"]  = array($ability_score);
+            $this->ishikawa_ability_scores_transition["$i"] = array($ability_score);
+            $this->terada_ability_scores_transition["$i"]   = array($ability_score);
+            $this->orignal_ability_scores[$i]  = $ability_score;
+            $this->ishikawa_ability_scores[$i] = $ability_score;
+            $this->terada_ability_scores[$i]   = $ability_score;
+            //シミュレーションには直接関係しない
+            $this->init_ability_scores[$i] = $ability_score;
+        }
+        //各種の計算式のクラスインスタンスを生成している
+        $this->orignal_user_assessment  = new SimulationOrignalUserAssessment();
+        $this->ishikawa_user_assessment = new SimulationIshikawaUserAssessment();
+        $this->terada_user_assessment   = new SimulationTeradaUserAssessment();
     }
   
     /**
@@ -477,6 +503,13 @@ class SimulationUserAssessment {
     }
 //------------------------------------------------------------------------------------------------------------------------
 
+    /**
+     * 2013-11-29
+     * init_ability_scoreを返すだけの関数
+     */
+    public function getInitAbilityScores() {
+        return $this->init_ability_scores;
+    }
 }
 
 ?>

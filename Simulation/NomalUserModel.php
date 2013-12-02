@@ -21,8 +21,6 @@ class NomalUserModel extends UserModel{
         //正解率の出し方はこれが良い気がする(一番近い値にいくので)
         //モデルとして正当性を主張できるようにする
         $correct_answer_ratio = 50 + 20 * ($true_ability - $true_difficult);
-        //model2：結果が良くない
-        //$correct_answer_ratio = 100 + 20 * ($true_ability - $true_difficult);
         if ($correct_answer_ratio < 0) { //難易度が実力よりも５以上大きかったとき
             $correct_answer_ratio = 0;
         }
@@ -38,8 +36,9 @@ class NomalUserModel extends UserModel{
      * @param $testdata_num         その問題のテストデータ数
      * @return [結果, 正解したテストデータ数]
      */
-    protected function getResult($correct_answer_ratio, $testdata_num){
-        $rand_x = mt_rand(0, 100);
+    protected function getResult($correct_answer_ratio, $testdata_num, $rand_x){
+        //検証のため、一旦コメントアウト
+        //$rand_x = mt_rand(0, 100);
         if($correct_answer_ratio >= $rand_x) {
             //全てのテストデータに正解
             return array(ACCEPTED, $testdata_num);
@@ -48,6 +47,10 @@ class NomalUserModel extends UserModel{
             //正解率０なら問答無用でコンパイルエラー
             return array(COMPILE_ERROR, 0);
         }
+        /**
+         * 2013-11-28
+         * これ以降は「失敗」した場合の処理なので、割合を変える必要がある
+         */
         //この段階で（$rand_x >= $correct_answer_ratio）は自明である
         $gap = $rand_x - $correct_answer_ratio;
         if($gap <= 10) {

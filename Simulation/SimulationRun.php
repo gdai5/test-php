@@ -12,10 +12,8 @@ td {
 
 /**
  * 最終更新日
- * 2013-11-9
- * ・三つの計算式の実装および、動作確認済み
- * ・難易度は全て真の難易度という過程で行った時の実力の変化を測定する
- * 
+ * 2013-12-02
+ * 同じシミュレーションが実行できるようになった
  */
  
 
@@ -27,11 +25,13 @@ require_once("./SimulationConst.php");
 require_once("./NomalUserModel.php");
 require_once("./SimulationUserAssessment.php");
 require_once("./SimulationQuestionAssessment.php");
+require_once("./SaveSimulationDatas.php");
+require_once("./LoadSimulationDatas.php");
 
 class SimulationRun{
     //真の実力、真の難易度、その問題の全テストデータ数
     private $true_ability_scores = array();
-    private $true_difficult = array();
+    private $true_difficults = array();
     private $question_testdata_num   = array();
     
     /**
@@ -63,7 +63,14 @@ class SimulationRun{
     private $user_assessment;
     private $question_assessment;
     
-     
+    /**
+     * 2013-11-28
+     * 様々なユーザモデルでの実力と難易度推移を記録するために
+     * rand_xで出た値も取得するため用意
+     */ 
+    private $rand_x_list = array();
+    private $save_simulation_datas;
+    
     
     /**
      * 2013-10-02
@@ -87,7 +94,7 @@ class SimulationRun{
                 $true_difficult = 10;
             }
             $this->true_ability_scores[$i] = $true_ability_score;
-            $this->true_difficult[$i]      = $true_difficult;
+            $this->true_difficults[$i]      = $true_difficult;
             $this->question_testdata_num[$i]   = mt_rand(1, 40);
             
             //ユーザの履歴を初期化
@@ -114,27 +121,56 @@ class SimulationRun{
         $this->user_assessment = new SimulationUserAssessment();
         $this->user_assessment->initialize();
         $this->question_assessment = new SimulationQuestionAssessment();
-        $this->question_assessment->initialize($this->true_difficult);
-    }
-    
-    
-    /**
-     * 2013-10-02
-     * 各計算式におけるユーザの実力と問題の難易度を初期化するための関数
-     */
-    private function setAbilityScoreAndDifficult() {
-        for($i = 0; $i < DATA_NUM; $i++) {
-            $ability_score = $this->getRandomRealNumber();
-            $this->orignal_user_ability_score[$i]  = $ability_score;
-            $this->ishikawa_user_ability_score[$i] = $ability_score;
-            $this->terada_user_ability_score[$i]   = $ability_score;
-            $difficult = $this->getRandomRealNumber();
-            $this->orignal_question_difficult[$i]  = $difficult;
-            $this->ishikawa_question_difficult[$i] = $difficult; 
-            $this->terada_question_difficult[$i]   = $difficult;
+        $this->question_assessment->initialize($this->true_difficults);
+        $this->save_simulation_datas = new SaveSimulationDatas();
+        
+        /**
+         * 2013-11-28
+         * 予め使うべきrand_xを準備しておく
+         */
+        for($i = 0; $i < 100000; $i++) {
+            $this->rand_x_list[$i] = mt_rand(0, 100);
         }
     }
-     
+    
+    /**
+     * 2013-12-01
+     * 同じシミュレーションを実行できるように変更した初期化
+     */
+    public final function loadSimulationDatas() {
+        $load_simulation_datas       = new LoadSimulationDatas();
+        $this->true_ability_scores   = $load_simulation_datas->loadTrueAbilityScores();
+        $this->true_difficults       = $load_simulation_datas->loadTrueDifficults();
+        $this->question_testdata_num = $load_simulation_datas->loadTestdataNum();
+        $this->data_set              = $load_simulation_datas->loadDataSets();
+        $this->rand_x_list           = $load_simulation_datas->loadRandXList();
+        //必要な初期化
+        for($i = 0; $i < DATA_NUM; $i++){
+            //ユーザの履歴を初期化
+            $this->users_history[$i][0] = array();
+            /**
+             * 問題の履歴を初期化
+             * ただし、この履歴に関してはある一定時間取った後に計算を行い
+             * その後初期化する
+             */
+            $this->questions_history[$i][0] = array();
+            $this->point_in_time_orignal_ability_scores[$i][0]  = array();
+            $this->point_in_time_ishikawa_ability_scores[$i][0] = array();
+            $this->point_in_time_terada_ability_scores[$i][0]   = array();
+            
+            //ユーザと問題の履歴の中で最も古い履歴を示す配列の番号を０で初期化する
+            $this->users_oldest_history_number[$i] = 0;
+            $this->questions_oldest_history_number[$i] = 0;
+        }
+        //init_ability_scoresをセットするため
+        $this->user_assessment = new SimulationUserAssessment();
+        $init_ability_scores = $load_simulation_datas->loadInitAbilityScores();
+        $this->user_assessment->initSameSimulation($init_ability_scores);
+        //init_difficultsをセットするため
+        $this->question_assessment = new SimulationQuestionAssessment();
+        $init_difficults = $load_simulation_datas->loadInitDifficults();
+        $this->question_assessment->initSameSimulation($init_difficults);
+    }
     
     //1~10までの範囲で小数点第一位までの実数を返す
     private function getRandomRealNumber() {
@@ -200,11 +236,11 @@ class SimulationRun{
      */
     public function Run() {
         //真の実力、真の難易度、問題のテストデータ数を生成
-        $this->initialize();
-        //実力と難易度の生成
-        $this->setAbilityScoreAndDifficult();
+        //$this->initialize();
         //データセットの生成
-        $this->makeDataSet();
+        //$this->makeDataSet();
+        //こっちが同じシミュレーションをするための初期化
+        $this->loadSimulationDatas();
         $nomal_user_model = new NomalUserModel();
         
         //計算回数のカウント用
@@ -213,10 +249,11 @@ class SimulationRun{
             $user_id     = $this->data_set[$i][0];
             $question_id = $this->data_set[$i][1];
             $true_ability_score = $this->true_ability_scores[$user_id];
-            $true_difficult     = $this->true_difficult[$question_id];
+            $true_difficult     = $this->true_difficults[$question_id];
             $testdata_num       = $this->question_testdata_num[$question_id];
+            //間違ったときの割合を取得するために、rand_xで出た値も取得するため
             list($result, $correct_testdata_num) = 
-                    $nomal_user_model->run($true_ability_score, $true_difficult, $testdata_num);
+                    $nomal_user_model->run($true_ability_score, $true_difficult, $testdata_num, $this->rand_x_list[$i]);
             $this->updateUserHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
             //難易度を固定にする場合はここも消さないとメモリーを圧迫する
             $this->updateQuestionHistory($user_id, $question_id, $result, $correct_testdata_num, $testdata_num);
@@ -275,6 +312,7 @@ class SimulationRun{
         $this->question_assessment->writeDifficultTransition();
         $this->writeTrueAbilityScore();
         $this->writeTrueDifficult();
+        //$this->save_simulation_datas->saveDatas($this->true_ability_scores, $this->true_difficults, $this->question_testdata_num, $this->data_set, $this->user_assessment->getInitAbilityScores(), $this->question_assessment->getInitDifficult(), $this->rand_x_list);
         printf("無事終わりました");
         
     }
@@ -299,8 +337,8 @@ class SimulationRun{
      */
     private function writeTrueDifficult() {
         $fp = fopen("./QuestionTransition/TrueDifficult.txt", "w");
-        for($i = 0; $i < count($this->true_difficult); $i++) {
-            fwrite($fp, $i . "番目" . $this->true_difficult[$i] . "\n");
+        for($i = 0; $i < count($this->true_difficults); $i++) {
+            fwrite($fp, $i . "番目" . $this->true_difficults[$i] . "\n");
         }
         fclose($fp);
     }
@@ -314,8 +352,8 @@ class SimulationRun{
             $initialMemoryUse = memory_get_usage();  
         }  
         var_dump(number_format(memory_get_usage() - $initialMemoryUse));  
-    }  
-
+    }
+    
 } 
 
 ?>
