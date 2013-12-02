@@ -70,13 +70,13 @@ class SimulationIshikawaUserAssessment {
        $delta = 0;
        switch($result) {
            case COMPILE_ERROR: //コンパイルエラー
-               $difficult = $difficult * 0.8;
+               $difficult = $difficult * 0.7;
                if($ability_score > $difficult){
                    $delta = 1;  
                } 
                break;
            case RUNTIME_ERROR: //実行時エラー
-               $difficult = $difficult * 0.9;
+               $difficult = $difficult * 0.8;
                if($ability_score > $difficult) {
                    $delta = 1;
                }

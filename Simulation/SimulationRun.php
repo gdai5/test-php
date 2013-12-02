@@ -260,14 +260,8 @@ class SimulationRun{
             //ユーザの実力計算
             //printf("-------------------" . $round . "回目の計算-------------------<br>");
             $this->user_assessment->Assessment($this->users_history[$user_id], $this->question_assessment);
-            /**
-             * 2013-10-11
-             * 問題の難易度計算
-             * 100回毎に全ての難易度の計算を行う
-             * 計算が終わったら、計算に使った履歴を削除する
-             * 無事動いている様子なので、検証する
-             */ 
             
+            //10000回毎に難易度の計算に入る
             if($round % ROUND == 0) {
                 //直接問題の数を入れる
                 for($j = 0; $j < count($this->questions_history); $j++) {

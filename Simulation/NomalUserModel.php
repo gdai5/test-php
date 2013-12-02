@@ -10,6 +10,10 @@ require_once("./UserModel.php");
  */
 class NomalUserModel extends UserModel{
     
+    private $ca = 10;
+    private $nc = 20;
+    private $re = 40;
+    
     /**
      * 真の実力と真の難易度の二つをもって、正解率を返す
      * @param $true_ability   真のユーザの実力
@@ -43,19 +47,15 @@ class NomalUserModel extends UserModel{
             //全てのテストデータに正解
             return array(ACCEPTED, $testdata_num);
         }
-        if($correct_answer_ratio == 0) {//正解率が０の場合は、問答無用でcompile errorとなる
-            //正解率０なら問答無用でコンパイルエラー
-            return array(COMPILE_ERROR, 0);
-        }
         /**
          * 2013-11-28
          * これ以降は「失敗」した場合の処理なので、割合を変える必要がある
          */
         //この段階で（$rand_x >= $correct_answer_ratio）は自明である
         $gap = $rand_x - $correct_answer_ratio;
-        if($gap <= 10) {
+        if($gap <= $this->ca) {
             //  テストデータが一つ以上合っている
-            $correct_testdata_num = $testdata_num * (10 - $gap) / 10;
+            $correct_testdata_num = $testdata_num * ($this->ca - $gap) / $this->ca;
             //丸める（例：9.99 => 9）
             $correct_testdata_num = floor($correct_testdata_num);
             //テストデータ数が一つしかないときに、正解したテストデータ数が０になる可能性があるのでその対策
@@ -64,11 +64,11 @@ class NomalUserModel extends UserModel{
             }
             return array(CLOSE_ANSWER, $correct_testdata_num);
         }
-        if($gap <= 20) {
+        if($gap <= $this->nc) {
             //テストデータが一つも合わない
             return array(NOT_CORRECT, 0);
         }
-        if($gap <= 40) {
+        if($gap <= $this->re) {
             //実行時エラー
             return array(RUNTIME_ERROR, 0);
         }
