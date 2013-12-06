@@ -47,6 +47,10 @@ class NomalUserModel extends UserModel{
             //全てのテストデータに正解
             return array(ACCEPTED, $testdata_num);
         }
+        //正解率が０なら問答無用でCE
+        if($correct_answer_ratio == 0) {
+            return array(COMPILE_ERROR, 0);
+        }
         /**
          * 2013-11-28
          * これ以降は「失敗」した場合の処理なので、割合を変える必要がある

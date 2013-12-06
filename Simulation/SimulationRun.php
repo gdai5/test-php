@@ -71,6 +71,15 @@ class SimulationRun{
     private $rand_x_list = array();
     private $save_simulation_datas;
     
+    /**
+     * 2013-12-05
+     * ユーザの真の実力が計算途中で変化した場合にそれに対応できるかどうかを確認するため
+     * ユーザの真の実力の変化の推移を記録する
+     */
+    private $true_ability_score_transition = array();
+    //実力の変更が行われるタイミング
+    private $change_true_ability_round = 50000;
+    private $change_true_ability_flag = false;
     
     /**
      * 2013-10-02
@@ -191,7 +200,18 @@ class SimulationRun{
         }
     }
     
-    
+    /**
+     * 2013-12-05
+     * 真の実力の推移を記録させるための、初期化と真の実力を変えることを示す
+     * フラグを一緒に建てる
+     */
+    private function changeAbilityScore() {
+        for($i = 0; $i < count($this->true_ability_scores); $i++) {
+            $this->true_ability_score_transition[$i] = array();
+            $this->true_ability_score_transition[$i][] = $this->true_ability_scores[$i];
+        }
+        $this->change_true_ability_flag = true;
+    }
     
     /**
      * 2013-10-22
@@ -242,6 +262,9 @@ class SimulationRun{
         //こっちが同じシミュレーションをするための初期化
         $this->loadSimulationDatas();
         $nomal_user_model = new NomalUserModel();
+        //真の実力を途中で変えるために必要な関数
+        //これを実行することで、これ以降のChangeTrueAbilityScore(), saveTrueAbilityScoreTransitionが動くようになる
+        $this->changeAbilityScore();
         
         //計算回数のカウント用
         $round = 1;
@@ -295,6 +318,8 @@ class SimulationRun{
                     $this->user_assessment->overwriteAbilityScoreTransition();
                 }
             }
+            //2013-12-06 実力が変化する関数
+            $this->ChangeTrueAbilityScores($round);
             //メモリ量の確認
             //$this->dumpMemory();
             //printf("<br>");
@@ -304,8 +329,9 @@ class SimulationRun{
         //最後に推移などを記録
         $this->user_assessment->overwriteAbilityScoreTransition();
         $this->question_assessment->writeDifficultTransition();
-        $this->writeTrueAbilityScore();
-        $this->writeTrueDifficult();
+        $this->saveTrueAbilityScoreTransition();
+        //$this->writeTrueAbilityScore();
+        //$this->writeTrueDifficult();
         //$this->save_simulation_datas->saveDatas($this->true_ability_scores, $this->true_difficults, $this->question_testdata_num, $this->data_set, $this->user_assessment->getInitAbilityScores(), $this->question_assessment->getInitDifficult(), $this->rand_x_list);
         printf("無事終わりました");
         
@@ -348,6 +374,53 @@ class SimulationRun{
         var_dump(number_format(memory_get_usage() - $initialMemoryUse));  
     }
     
+    /**
+     * 2013-12-05
+     * ここには、ユーザの真の実力を変化させるための処理を書く
+     * 可能な限り、メイン処理に余分なコードを書きたくないため
+     * この処理を回すかどうかのフラグと変更するタイミングをこの中に組み込んだ
+     */
+    private function ChangeTrueAbilityScores($round) {
+        if($this->change_true_ability_flag == true) {
+            if($round % $this->change_true_ability_round == 0) {
+                for($i = 0; $i < count($this->true_ability_scores); $i++) {
+                    //現在の実力を取得
+                    $true_ability_score = $this->true_ability_scores[$i];
+                    //全体的に３上げる
+                    $true_ability_score += 3;
+                    if($true_ability_score > 10) {
+                        $true_ability_score = 10;
+                    }
+                    //最後に計算と記録用の配列に適応させる
+                    $this->true_ability_scores[$i]             = $true_ability_score;
+                    $this->true_ability_score_transition[$i][] = $true_ability_score;
+                }
+                //確認用 
+                printf("実力が変更されました<br>");      
+            }
+        } 
+    }
+    
+    /**
+     * 2013-12-06
+     * 実力が推移した事を記録するための関数
+     */
+    private function saveTrueAbilityScoreTransition() {
+        if($this->change_true_ability_flag == true) {
+            $fp = fopen("./UserTransition/TrueAbilityScoreTransition.txt", "w");
+            for($i = 0; $i < DATA_NUM; $i++) {
+                for($j = 0; $j < count($this->true_ability_score_transition[$i]); $j++) {
+                    if($j != count($this->true_ability_score_transition[$i]) - 1) {
+                        fwrite($fp, $this->true_ability_score_transition[$i][$j] . ",");
+                    }else{
+                        fwrite($fp, $this->true_ability_score_transition[$i][$j] . "\n");
+                    }
+                }
+            }
+            printf("真の実力の推移を保存しました<br>");
+            fclose($fp);
+        }
+    }
 } 
 
 ?>

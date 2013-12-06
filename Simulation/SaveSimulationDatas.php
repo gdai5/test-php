@@ -9,7 +9,7 @@ class SaveSimulationDatas {
     
     //どの場所に保存するのかを決める
     //ここを変えれば保存場所を変えられる！
-    private $save_directory_pass = "./SimulationDatas/DataSet3";
+    private $save_directory_pass = "./SimulationDatas/DataSet1";
         
     /**
      * 2013-11-29
